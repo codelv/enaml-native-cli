@@ -1,15 +1,6 @@
 include ':app'
 
 include ':enaml-native'
-project(':enaml-native').projectDir = new File(rootProject.projectDir, '../packages/enaml-native/android')
-
-include ':enaml-native-icons'
-project(':enaml-native-icons').projectDir = new File(rootProject.projectDir, '../packages/enaml-native-icons/android')
-
-//include ':enaml-native-maps'
-//project(':enaml-native-maps').projectDir = new File(rootProject.projectDir, '../packages/enaml-native-maps/android')
-//
-//include ':enaml-native-charts'
-//project(':enaml-native-charts').projectDir = new File(rootProject.projectDir, '../packages/enaml-native-charts/android')
+project(':enaml-native').projectDir = new File(rootProject.projectDir, '../venv/packages/enaml-native/android')
 
 

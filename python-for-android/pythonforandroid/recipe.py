@@ -1,3 +1,4 @@
+import os
 import sh
 import sys
 import glob
@@ -927,6 +928,20 @@ class PythonRecipe(Recipe):
                 '--root={}'.format(dirname(self.real_hostpython_location)),
                 '--install-lib=Lib/site-packages',
                 _env=env, *self.setup_extra_args)
+
+
+class EnamlNativeRecipe(PythonRecipe):
+    def download(self):
+        """ Copy it right from the source """
+        #: Zip the srz
+        src_root = os.path.abspath(join(sys.prefix, 'packages', self.name))
+        with current_directory(src_root):
+            dst_root = join(self.ctx.packages_path, self.name)
+            if not exists(dst_root):
+                os.makedirs(dst_root)
+            sh.zip('-r', join(dst_root, self.url), 'src')
+            sh.zip('-r', join(self.ctx.packages_path, self.name, self.url), 'src')
+
 
 
 class CompiledComponentsPythonRecipe(PythonRecipe):

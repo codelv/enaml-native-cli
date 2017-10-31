@@ -145,7 +145,12 @@ def shprint(command, *args, **kwargs):
     kwargs["_out_bufsize"] = 1
     kwargs["_err_to_out"] = True
     kwargs["_bg"] = True
+
+    #: Allow logging in debug using _debug=True
+    original_level = logger.level
+    force_debug = kwargs.pop('_debug', False)
     is_critical = kwargs.pop('_critical', False)
+
     tail_n = kwargs.pop('_tail', None)
     if "P4A_FULL_DEBUG" in os.environ:
         tail_n = 0
@@ -159,6 +164,8 @@ def shprint(command, *args, **kwargs):
     string = ' '.join(['{}->{} running'.format(Out_Fore.LIGHTBLACK_EX,
                                                Out_Style.RESET_ALL),
                        command_string] + list(args))
+    if force_debug:
+        logger.level = logging.DEBUG
 
     # If logging is not in DEBUG mode, trim the command if necessary
     if logger.level > logging.DEBUG:
@@ -173,7 +180,7 @@ def shprint(command, *args, **kwargs):
         msg_width = columns - len(msg_hdr) - 1
         output = command(*args, **kwargs)
         for line in output:
-            if logger.level > logging.DEBUG:
+            if (not force_debug) and logger.level > logging.DEBUG:
                 msg = line.replace(
                     '\n', ' ').replace(
                         '\t', ' ').replace(
@@ -234,5 +241,8 @@ def shprint(command, *args, **kwargs):
             exit(1)
         else:
             raise
+    finally:
+        if force_debug:
+            logger.level = original_level
 
     return output

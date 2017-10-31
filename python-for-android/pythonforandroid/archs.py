@@ -100,12 +100,16 @@ class Arch(object):
         env['READELF'] = '{}-readelf'.format(command_prefix)
         env['NM'] = '{}-nm'.format(command_prefix)
 
-        hostpython_recipe = Recipe.get_recipe('hostpython2', self.ctx)
+        #: frmdstryr: This seems to not be used anywhere, is it needed?
+        try:
+            hostpython_recipe = Recipe.get_recipe('hostpython2', self.ctx)
 
-        # AND: This hardcodes python version 2.7, needs fixing
-        env['BUILDLIB_PATH'] = join(
-            hostpython_recipe.get_build_dir(self.arch),
-            'build', 'lib.linux-{}-2.7'.format(uname()[-1]))
+            # AND: This hardcodes python version 2.7, needs fixing
+            env['BUILDLIB_PATH'] = join(
+                hostpython_recipe.get_build_dir(self.arch),
+                'build', 'lib.linux-{}-2.7'.format(uname()[-1]))
+        except IOError:
+            pass
 
         env['PATH'] = environ['PATH']
 

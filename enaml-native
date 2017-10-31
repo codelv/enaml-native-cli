@@ -74,7 +74,10 @@ class Init(Command):
     args = set_default([
         ('name', dict(help="Project name")),
         ('bundle_id', dict(help="App bundleId")),
-        ('destination', dict(help="Project destination folder")),
+        ('destination', dict(help="Project destination folder (optional) "
+                                  "Note: If not given will attempt to build in the cwd",
+                             nargs="?")),
+        ('--dev', dict(help="Install dev version of cli from the given pip resource")),
     ])
 
     #: Can be run from anywhere
@@ -82,19 +85,28 @@ class Init(Command):
 
     def run(self, args):
         #: Append project name
-        dest = join(abspath(args.destination), args.name.replace(" ", ""))
-        assert not exists(dest), "Error: Destination folder already exists! ({})".format(dest)
+        if args.destination:
+            dest = join(abspath(args.destination), args.name.replace(" ", ""))
+            assert not exists(dest), "Error: Destination folder already exists! ({})".format(dest)
+        else:
+            dest = '.'
+        print("Init new project {} ({}) in {}".format(args.name, args.bundle_id, abspath(dest)))
+
         root = os.environ['ENAML_NATIVE_ROOT']
+
+        #: Get package to install
+        enaml_native = abspath(args.dev) if args.dev else 'enaml-native'
 
         #: Clean root android project
         with cd(root):
             self.cmds['clean-android'].run()
 
         #: Make project dir
-        os.makedirs(dest)
+        if not exists(dest):
+            os.makedirs(dest)
         with cd(dest):
             #: Copy everything
-            for f in ['android', 'ios', 'src', 'packages']:
+            for f in ['android', 'ios']:
                 shprint(sh.cp, '-R', join(root, f), '.')
 
             #: Create package.json
@@ -181,23 +193,78 @@ class Init(Command):
                             ))
 
             #: Update view.enaml
+            if not exists('src'):
+                os.makedirs('src')
+            with cd('src'):
+                with open('main.py', 'w') as f:
+                    f.write(textwrap.dedent("""
+                    import sys
+                    import os
+                    
+                    def main():
+                        #: Called to start your app 
+                        from enamlnative.android.app import AndroidApplication
+                        app = AndroidApplication()
+                        #app.debug = True #: Makes a lot of lag!
+                        #app.dev = 'server' # "10.0.2.2" # or 'server'
+                        app.reload_view = reload_view
+                        app.deferred_call(load_view, app)
+                        app.start()
+                    
+                    def load_view(app):
+                        #: Create and show the enaml view
+                        import enaml
+                        with enaml.imports():
+                            from view import ContentView
+                            app.view = ContentView()
+                        #: Time how long it takes
+                        app.show_view()
+                    
+                    
+                    def reload_view(app):
+                        #: This is called when an app reload is requested in dev mode
+                        import enaml
+                        with enaml.imports():
+                            import view
+                            reload(view)
+                            app.view = view.ContentView()
+                    """))
+
+                with open('view.enaml', 'w') as f:
+                    f.write(textwrap.dedent("""
+                    from enamlnative.core.api import *
+                    from enamlnative.widgets.api import *
+                    
+                    enamldef ContentView(Flexbox):
+                        flex_direction = "column"
+                        TextView:
+                            text = "{}"
+                    
+                    """.format(args.name)))
 
 
 
             #: Init VCS
             shprint(sh.git, 'init')
 
-            #: Create VENV
-            shprint(sh.virtualenv, 'venv')
-            print("Installing the enaml-native cli...")
-            shprint(sh.bash, '-c', 'source venv/bin/activate && pip install enaml-native-cli')
-            print("Installing p4a requirements")
+            #: Create a venv if one doesn't already exist
+            if not exists('venv'): #: TODO: it's not possible for this to exist at the moment!
+                shprint(sh.virtualenv, 'venv')
+
+                if args.dev:
+                    #: Try to install from enaml-native-cli folder
+                    print("Installing enaml-native-cli...")
+                    cli = join(dirname(enaml_native),'enaml-native-cli')
+                    shprint(sh.bash, '-c', 'source venv/bin/activate && '
+                                       'pip install {enaml_native_cli}'.format(enaml_native_cli=cli))
+
+            print("Installing enaml-native...")
             shprint(sh.bash, '-c', 'source venv/bin/activate && '
-                                   'pip install p4a-nucleic p4a-msgpack')
+                                   'pip install {enaml_native}'.format(enaml_native=enaml_native))
 
             print("==============================================================")
             print(sh.bash('-c', 'source venv/bin/activate && '
-                                'enaml-native --help'))
+                                    'enaml-native --help'))
 
         print("==============================================================")
         print("Project created successfully!")
@@ -254,7 +321,7 @@ class NdkBuild(Command):
 
         jni_dir = ctx['android'].get(
             'jni_dir',
-            "{}/packages/enaml-native/android/src/main/jni".format(os.getcwd())
+            "{}/{}/enaml-native/android/src/main/jni".format(os.getcwd(), Link.package_dir)
         )
 
         with cd(jni_dir):
@@ -337,6 +404,7 @@ class BuildPython(Command):
         ('--ios', dict(action='store_true', help="iOS only")),
         ('--android', dict(action='store_true', help="Android only")),
         ('--minify', dict(action='store_true', help="Minify")),
+        ('--release', dict(action='store_true', help="Build for release")),
     ])
 
     def run(self, args=None):
@@ -369,7 +437,7 @@ class BuildPython(Command):
             #: Get current directory where command was run
             cfg['ndk_build_dir'] = env.get(
                 'ndk_build_dir',
-                "{}/packages/enaml-native/android/src/main/libs".format(os.getcwd())
+                "{}/{}/enaml-native/android/src/main/libs".format(os.getcwd(), Link.package_dir)
             )
 
             #: Add debug arg if needed
@@ -407,7 +475,7 @@ class BuildPython(Command):
                                     '--ndk-build-dir={ndk_build_dir} '
                                     '{debug}'
                                     '{minify}'
-                                    '--copy-libs'.format(**cfg).split(' '))
+                                    '--copy-libs'.format(**cfg).split(' '), _debug=True)
 
             #: Copy lib folder
             shprint(sh.cp,'-R',
@@ -435,7 +503,7 @@ class BuildPython(Command):
                                 entry_points[section][opt] = config.get(section, opt)
 
                     if entry_points:
-                        with open('entry_points.json','w') as f:
+                        with open('entry_points.json', 'w') as f:
                             f.write(json.dumps(entry_points, indent=2))
                 except:
                     print("Failed to convert entry points")
@@ -732,15 +800,29 @@ class ListPackages(Command):
     help = set_default("List installed packages")
 
     def run(self, args):
-        with cd('packages'):
-            try:
-                print(sh.pipdeptree())
-            except:
-                print("Warning: pipdeptree is not installed, falling pack on pip!")
-                print(sh.pip('list', '-l'))
+        try:
+            print(sh.pipdeptree())
+        except:
+            print("Warning: pipdeptree is not installed, falling pack on pip!")
+            print(sh.pip('list', '-l'))
 
 
 class Install(Command):
+    """ The "Install" command does a pip install of the package names given and then runs the 
+     linker command.
+      
+    A custom post_install_hook can be used by adding a "enaml_native_post_install" entry_point 
+    which shall be a function that receives the app package.json (context) an argument. This is
+    called before linking is done. The return value is ignored.
+    
+    Example
+    ----------
+    
+    def post_install(ctx):
+        #: Do any post_install steps here (ex maybe collect install stats?)
+        #: print links to docs, ask setup questions, etc.. 
+    
+    """
     title = set_default("install")
     help = set_default("Install and link an enaml-native package")
     args = set_default([
@@ -750,42 +832,66 @@ class Install(Command):
     ])
 
     def run(self, args):
+        print("Installing {}...".format(", ".join(args.names)))
+        #: Install enaml-native package with pip
+        #: TODO: Check that we're in a virtualenv!
+        if not hasattr(sys, 'real_prefix'):
+            print("Warning: It's highly recommended to use enaml-native in a virtual env!")
+
+        shprint(sh.pip, 'install', " ".join(args.names))
+
         for name in args.names:
-            print("Installing {}...".format(name))
-            #: Install enaml-native package with pip
-            #: TODO: Check that we're in a virtualenv!
-            if not hasattr(sys, 'real_prefix'):
-                print("Warning: It's highly recommended to use enaml-native in a virtual env!")
+            #: Check if a custom post_install_hook exists to handle this package
+            for ep in pkg_resources.iter_entry_points(group="enaml_native_post_install"):
+                if ep.name.replace("-", '_') == name.replace("-", '_'):
+                    post_install_hook = ep.load()
+                    print("Custom post_install_hook {} found for '{}'. ".format(post_install_hook,
+                                                                                 name))
+                    post_install_hook(self.ctx)
+                    break
 
-            shprint(sh.pip, 'install', name)
+        if not args.nolink:
+            #: TODO: Detect actual name from name given (ex filter out http:// git+ etc.. pip reqs)
+            #: Link everything for now
+            self.cmds['link'].run()
+            #self.cmds['link'].run(args)
 
-            if not args.nolink:
-                if args.name.startswith("http") or args.name.startswith("git"):
-                    self.cmds['link'].run()
-                else:
-                    self.cmds['link'].run(args)
-
-            ctx = self.ctx
-            #: TODO: Get version?
-            ctx['android']['dependencies'][name] = ""
-            #: Dump before openting
-            pkg = json.dumps(ctx, indent=4)
-            with open('package.json', 'w') as f:
-                f.write(pkg)
+        if args.save:
+            for name in args.names:
+                ctx = self.ctx
+                #: TODO: Get version?
+                ctx['android']['dependencies'][name] = ""
+                #: Dump before openting
+                pkg = json.dumps(ctx, indent=4)
+                with open('package.json', 'w') as f:
+                    f.write(pkg)
 
 
 class Uninstall(Command):
+    """ The "Uninstall" command unlinks the package (if needed) and does a pip uninstall
+    of the package names given. 
+      
+    A custom pre_uninstall_hook can be used by adding a "enaml_native_pre_uninstall" entry_point 
+    which shall be a function that receives the app package.json (context) an argument. This is
+    called after unlinking is done. The return value is ignored.
+    
+    Example
+    ----------
+    
+    def pre_uninstall(ctx):
+        # Do any pre_uninstall steps here (ex maybe collect uninstall stats?)
+
+    """
     title = set_default("uninstall")
     help = set_default("Uninstall and unlink enaml-native package")
     args = set_default([
         ('names', dict(help="Package name", nargs="+")),
-        #('--save', dict(action='store_true', help="Remove from requirements")),
+        ('--save', dict(action='store_true', help="Remove from requirements")),
         ('--nolink', dict(action='store_true', help="Skip unlinking")),
     ])
 
     def run(self, args):
-
-        print("Unistalling {}...".format(args.names))
+        print("Unistalling {}...".format(", ".join(args.names)))
 
         if not hasattr(sys, 'real_prefix'):
             print("Warning: It's highly recommended to use enaml-native in a virtual env!")
@@ -795,20 +901,59 @@ class Uninstall(Command):
             self.cmds['unlink'].run(args)
 
         #: Install enaml-native package with pip
-        shprint(sh.pip, 'uninstall', '--yes', args.names)
-
+        graph = json.loads(sh.pipdeptree('-j').strip())
         for name in args.names:
-            ctx = self.ctx
-            #: TODO: Get version?
-            if args.name in ctx['android']['dependencies']:
-                del ctx['android']['dependencies'][name]
-            #: Dump before openting
-            pkg = json.dumps(ctx, indent=4)
-            with open('package.json', 'w') as f:
-                f.write(pkg)
+            #: Find all packages that only depend on this
+
+            #: Check if a custom pre_uninstall_hook exists to handle this package
+            for ep in pkg_resources.iter_entry_points(group="enaml_native_pre_uninstall"):
+                if ep.name.replace("-", '_') == name.replace("-", '_'):
+                    pre_uninstall_hook = ep.load()
+                    print("Custom pre_uninstall_hook {} found for '{}'. ".format(pre_uninstall_hook,
+                                                                                 name))
+                    pre_uninstall_hook(self.ctx)
+                    break
+
+            depends = [name]
+
+            #: TODO: Needs to also remove all dependencies' dependencies
+            # dependencies = [d['key'] for d in
+            #                 [g['dependencies'] for g in graph if g['package']['key'] == name][0]]
+            # for d in dependencies:
+            #     #: If this dependency is only there due to the given package, also remove it
+            #     if len([line for line in sh.pipdeptree('-r', '-p', d)
+            #             if line.startswith("  - ")]) == 1:
+            #         depends.append(d)
+
+            shprint(sh.pip, 'uninstall', '--yes', " ".join(depends))
+
+        if args.save:
+            for name in args.names:
+                ctx = self.ctx
+                #: TODO: Get version?
+                if name in ctx['android']['dependencies']:
+                    del ctx['android']['dependencies'][name]
+                #: Dump before openting
+                pkg = json.dumps(ctx, indent=4)
+                with open('package.json', 'w') as f:
+                    f.write(pkg)
 
 
 class Link(Command):
+    """ The "Link" command tries to modify the android and ios projects
+        to include all of the necessary changes for this package to work.
+          
+        A custom linkiner can be used by adding a "enaml_native_linker" entry_point which
+        shall be a function that receives the app package.json (context) an argument. 
+        
+        Example
+        ----------
+        
+        def linker(ctx):
+            # Link android and ios projects here
+            return True #: To tell the cli the linking was handled and should return
+    
+    """
     title = set_default("link")
     help = set_default("Link an enaml-native package (updates android and ios projects)")
     args = set_default([
@@ -835,6 +980,15 @@ class Link(Command):
     def link(self, path, pkg):
         """ Link the package in the current directory.
         """
+        #: Check if a custom linker exists to handle linking this package
+        for ep in pkg_resources.iter_entry_points(group="enaml_native_linker"):
+            if ep.name.replace("-", '_') == pkg.replace("-", '_'):
+                linker = ep.load()
+                print("Custom linker {} found for '{}'. Linking...".format(linker, pkg))
+                if linker(self.ctx, path):
+                    return
+
+        #: Use the default builtin linker script
         if exists(join(path, pkg, 'android', 'build.gradle')):
             self.link_android(path, pkg)
         else:
@@ -1027,6 +1181,19 @@ class Link(Command):
 
 
 class Unlink(Command):
+    """ The "Unlink" command tries to undo the modifications done by the linker..
+          
+        A custom unlinkiner can be used by adding a "enaml_native_unlinker" entry_point which
+        shall be a function that receives the app package.json (context) an argument. 
+        
+        Example
+        ----------
+        
+        def unlinker(ctx):
+            # Unlink android and ios projects here
+            return True #: To tell the cli the unlinking was handled and should return
+    
+    """
     title = set_default("unlink")
     help = set_default("Unlink an enaml-native package")
     args = set_default([
@@ -1042,6 +1209,14 @@ class Unlink(Command):
     def unlink(self, path, pkg):
         """ Unlink the package in the current directory.
         """
+        #: Check if a custom unlinker exists to handle unlinking this package
+        for ep in pkg_resources.iter_entry_points(group="enaml_native_unlinker"):
+            if ep.name.replace("-", '_') == pkg.replace("-", '_'):
+                unlinker = ep.load()
+                print("Custom unlinker {} found for '{}'. Unlinking...".format(unlinker, pkg))
+                if unlinker(self.ctx, path):
+                    return
+
         if exists(join(path, pkg, 'android', 'build.gradle')):
             self.unlink_android(path, pkg)
         else:
@@ -1200,9 +1375,9 @@ class BuildAndroid(Command):
         with cd("android"):
             gradlew = sh.Command('./gradlew')
             if args and args.release:
-                shprint(gradlew, 'assembleRelease')
+                shprint(gradlew, 'assembleRelease', _debug=True)
             else:
-                shprint(gradlew, 'assembleDebug')
+                shprint(gradlew, 'assembleDebug', _debug=True)
 
 
 class CleanAndroid(Command):
@@ -1212,7 +1387,7 @@ class CleanAndroid(Command):
     def run(self, args=None):
         with cd('android'):
             gradlew = sh.Command('./gradlew')
-            shprint(gradlew, 'clean')
+            shprint(gradlew, 'clean', _debug=True)
 
 
 class RunAndroid(Command):
@@ -1235,11 +1410,11 @@ class RunAndroid(Command):
                 device = sh.emulator('-list-avds').stdout.split("\n")[0]
                 shprint(sh.emulator, '-avd', device)
             if args and args.release:
-                shprint(gradlew, 'assembleRelease')
+                shprint(gradlew, 'assembleRelease', _debug=True)
                 #shprint(sh.adb,'uninstall','-k','"{}"'.format(bundle_id))
                 shprint(sh.adb,'install',release_apk)
             else:
-                shprint(gradlew, 'installDebug')
+                shprint(gradlew, 'installDebug', _debug=True)
             shprint(sh.adb, 'shell', 'am', 'start', '-n',
                     '{bundle_id}/{bundle_id}.MainActivity'.format(bundle_id=bundle_id))
 
@@ -1568,7 +1743,7 @@ class EnamlNativeCli(Atom):
                     "arches": ["x86", "armeabi-v7a"],
                     "dependencies": {
                         "python2crystax": "2.7.10",
-                        "enamlnative": ">=2.1",
+                        "enaml-native": ">=2.1",
                         "ply": "==3.10"
                     },
                     "excluded": [],
@@ -1587,7 +1762,7 @@ class EnamlNativeCli(Atom):
 
         else:
             with open(self.package) as f:
-                ctx = json.load(f)
+                ctx = json.load(f, object_pairs_hook=OrderedDict)
 
         #: Add p4a to ctx if not in enaml-native git root
         ctx['cli_root'] = os.environ.get('ENAML_NATIVE_ROOT')
@@ -1598,11 +1773,12 @@ class EnamlNativeCli(Atom):
         for k in ['ndk', 'sdk']:
             ctx['android'][k] = os.path.expanduser(ctx['android'][k])
 
-        #: Ensure build dir exists for each env
-        for env in [ctx['ios'], ctx['android']]:
-            #: Add default
-            if 'python_build_dir' not in env:
-                env['python_build_dir'] = os.path.expanduser(os.path.abspath('build/python'))
+        if self.in_app_directory:
+            #: Ensure build dir exists for each env
+            for env in [ctx['ios'], ctx['android']]:
+                #: Add default
+                if 'python_build_dir' not in env:
+                    env['python_build_dir'] = os.path.expanduser(os.path.abspath('build/python'))
 
         return ctx
 
@@ -1634,7 +1810,8 @@ class EnamlNativeCli(Atom):
         try:
             if cmd.app_dir_required and not self.in_app_directory:
                 raise EnvironmentError(
-                    "{} requires being run within the app root directory".format(cmd.title))
+                    "'enaml-native {}' must be run within an app root directory not: {}"
+                        .format(cmd.title, os.getcwd()))
             cmd.run(self.args)
         except sh.ErrorReturnCode as e:
             print(e.stderr)
@@ -1651,9 +1828,8 @@ def configure_path():
         user_base = join(expanduser('~'), '.local')
 
     for root in [join(dirname(realpath(__file__))),
-                 join(dirname(realpath(__file__)), 'packages'),
-                 join(user_base, 'packages', 'enaml-native-cli'),
-                 join(sys.prefix, 'packages', 'enaml-native-cli')]:
+                 join(sys.prefix, 'packages', 'enaml-native-cli'),  #: venv or system install
+                 join(user_base, 'packages', 'enaml-native-cli')]:  #: user dir
         if exists(join(root, 'python-for-android')):
             os.environ['ENAML_NATIVE_ROOT'] = abspath(expanduser(root))
             os.environ['P4A_ROOT'] = join(root, 'python-for-android')

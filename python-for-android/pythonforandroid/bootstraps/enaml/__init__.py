@@ -7,7 +7,7 @@ import sh
 class PlainBootstrap(Bootstrap):
     name = 'plain'
 
-    recipe_depends = ['genericndkbuild', ('python2crystax', 'python3crystax')]
+    recipe_depends = [('python2crystax', 'python3crystax')]
 
     def run_distribute(self):
         info_main('# Creating Android project from build and {} bootstrap'.format(
