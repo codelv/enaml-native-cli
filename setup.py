@@ -19,8 +19,10 @@ def find_data_files(dest, *folders):
     #: Want to install outside the venv volder in the packages folder
     dest = os.path.join('packages', dest)
 
-    excluded_types = ['.pyc', '.enamlc', '.apk', '.iml', '.tar.gz']
-    excluded_dirs = ['android/build', 'android/captures', 'android/assets']
+    excluded_types = ['.pyc', '.enamlc', '.apk', '.iml','.zip', '.tar.gz', '.so', '.gif', '.svg']
+    excluded_dirs = ['android/build', 'android/captures', 'android/assets',
+                     'python-for-android/doc', 'bootstraps/pygame', 'python-for-android/testapps',
+                     'python-for-ios/tools/external']
     for folder in folders:
         if not os.path.isdir(folder):
             k = os.path.join(dest, dirpath)

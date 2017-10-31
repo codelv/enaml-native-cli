@@ -98,8 +98,8 @@ class Init(Command):
         enaml_native = abspath(args.dev) if args.dev else 'enaml-native'
 
         #: Clean root android project
-        with cd(root):
-            self.cmds['clean-android'].run()
+        #with cd(root):
+        #    self.cmds['clean-android'].run()
 
         #: Make project dir
         if not exists(dest):
