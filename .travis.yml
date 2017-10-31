@@ -1,0 +1,47 @@
+sudo: required
+dist: trusty
+language: python
+
+branches:
+  only:
+    - master
+
+matrix:
+  include:
+    - env: PYTHON=2.7
+
+before_install:
+
+  # Just to be sure
+  - pip install -U pip
+
+  # pip is not able to install distribute: "ImportError: No module named _markerlib"
+  - easy_install distribute
+
+  #: Install cython
+  - pip install Cython --install-option="--no-cython-compile"
+
+  # Install cli dependencies
+  - pip install sh colorama appdirs six jinja2 pipdeptree atom ply
+
+  # Intall test tools
+  - pip install pytest pytest-cov pytest-catchlog pytest-timeout
+
+  # Install codecov report tools
+  - pip install codecov
+
+install:
+
+  # Install enamlnative (check that build script is not broken
+  - cd $TRAVIS_BUILD_DIR
+  - python setup.py develop
+  - cd ~
+
+script:
+  # Run the enaml test suite
+  - cd $TRAVIS_BUILD_DIR
+  - py.test tests --cov enaml-native --cov-report xml -v
+
+after_success:
+  - cd $TRAVIS_BUILD_DIR
+  - codecov

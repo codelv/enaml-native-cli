@@ -13,18 +13,20 @@ Includes customized versions of python-for-android and python-for-ios (kivy-ios)
 
 ### Installation
 
-Install via pip:
+Install via pip using the `--user` flag. 
 
 ```bash 
 
-pip install enaml-native-cli
+#: Do either
+pip install --user enaml-native-cli
+
 
 ```
 
 
 ### Usage
 
-Start a new enaml-native project
+Start a new enaml-native project:`
 
 ```bash 
 
@@ -32,10 +34,19 @@ enaml-native init <AppName> <bundle.id> <dest/folder>
 
 ```
 
+for example
+
+```bash
+
+#: Note: the apps/ folder must exist!
+enaml-native init HelloWorld com.example.helloworld apps/
+
+```
+
 Once done, cd to the app folder and activate the app's virtual environment.
 
 ```bash 
-cd apps/MyApp
+cd apps/HelloWorld
 source venv/bin/activate
 ```
 
@@ -43,7 +54,7 @@ Now install any app requirements (or use `pip install` and `enaml-native link`)
 
 ```bash
 
-enaml-native install <package>
+enaml-native install enaml-native-icons
 
 ```
 
@@ -57,9 +68,12 @@ Build and run your app
 
 ```bash
 
+#: Build python requirements
 enaml-native build-python
-enaml-native build-android
-enaml-native build-python # Yes you must do it twice
+enaml-native build-android # Required to do a gradle sync
+enaml-native build-python # Yes, at the moment you must do it again
+
+#: Run the app
 enaml-native run-android
 
 ```
