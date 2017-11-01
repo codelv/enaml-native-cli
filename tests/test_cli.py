@@ -19,7 +19,8 @@ from pythonforandroid.logger import shprint
 
 def test_init():
     cmd = sh.Command('enaml-native')
-    shprint(cmd, 'init', 'HelloWorld', 'com.example.helloworld', 'tmp/', _debug=True)
+    shprint(cmd, 'init', 'HelloWorld', 'com.example.helloworld', 'tmp/',
+            '--dev-cli', '.', _debug=True)
 
     #: Try to build
     os.chdir('tmp/HelloWorld/')

@@ -77,7 +77,8 @@ class Init(Command):
         ('destination', dict(help="Project destination folder (optional) "
                                   "Note: If not given will attempt to build in the cwd",
                              nargs="?")),
-        ('--dev', dict(help="Install dev version of cli from the given pip resource")),
+        ('--dev', dict(help="Install dev version of enaml-native from the given pip resource")),
+        ('--dev-cli', dict(help="Install dev version of the enaml-native-cli from the given pip resource")),
     ])
 
     #: Can be run from anywhere
@@ -96,6 +97,7 @@ class Init(Command):
 
         #: Get package to install
         enaml_native = abspath(args.dev) if args.dev else 'enaml-native'
+        enaml_native_cli = abspath(args.dev_cli) if args.dev_cli else 'enaml-native-cli'
 
         #: Clean root android project
         #with cd(root):
@@ -251,12 +253,13 @@ class Init(Command):
             if not exists('venv'): #: TODO: it's not possible for this to exist at the moment!
                 shprint(sh.virtualenv, 'venv')
 
-                if args.dev:
-                    #: Try to install from enaml-native-cli folder
-                    print("Installing enaml-native-cli...")
-                    cli = join(dirname(enaml_native),'enaml-native-cli')
-                    shprint(sh.bash, '-c', 'source venv/bin/activate && '
-                                       'pip install {enaml_native_cli}'.format(enaml_native_cli=cli))
+            if args.dev_cli:
+                #: Try to install from enaml-native-cli folder
+                print("Installing enaml-native-cli...")
+                cli = join(dirname(enaml_native), 'enaml-native-cli')
+                shprint(sh.bash, '-c', 'source venv/bin/activate && '
+                                   'pip install {enaml_native_cli}'
+                                   .format(enaml_native_cli=enaml_native_cli))
 
             print("Installing enaml-native...")
             shprint(sh.bash, '-c', 'source venv/bin/activate && '
