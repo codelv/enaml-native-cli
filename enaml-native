@@ -405,6 +405,7 @@ class BuildPython(Command):
         ('--android', dict(action='store_true', help="Android only")),
         ('--minify', dict(action='store_true', help="Minify")),
         ('--release', dict(action='store_true', help="Build for release")),
+        ('--skip-ndk-build', dict(action='store_true', help="Skip ndk-build (for travis)")),
     ])
 
     def run(self, args=None):
@@ -422,8 +423,9 @@ class BuildPython(Command):
         reqs = ",".join(env['dependencies'].keys())
 
         #: Run ndk build
-        #: Um, we're passing args from another command?
-        self.cmds['ndk-build'].run(args)
+        if not args.skip_ndk_build:
+            #: Um, we're passing args from another command?
+            self.cmds['ndk-build'].run(args)
 
         #: Build for each arch
         for arch in env['arches']:

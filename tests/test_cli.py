@@ -23,4 +23,5 @@ def test_init():
 
     #: Try to build
     os.chdir('tmp/HelloWorld/')
-    shprint(sh.bash, '-c', 'source venv/bin/activate && enaml-native build-python', _debug=True)
+    shprint(sh.bash, '-c',
+            'source venv/bin/activate && enaml-native build-python --skip-ndk-build', _debug=True)
