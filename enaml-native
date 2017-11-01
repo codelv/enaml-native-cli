@@ -79,6 +79,7 @@ class Init(Command):
                              nargs="?")),
         ('--dev', dict(help="Install dev version of enaml-native from the given pip resource")),
         ('--dev-cli', dict(help="Install dev version of the enaml-native-cli from the given pip resource")),
+        ('--no-venv', dict(action='store_true', help="Don't create a venv for the app (ignores dev flags)")),
     ])
 
     #: Can be run from anywhere
@@ -244,30 +245,30 @@ class Init(Command):
                     
                     """.format(args.name)))
 
-
-
             #: Init VCS
             shprint(sh.git, 'init')
 
-            #: Create a venv if one doesn't already exist
-            if not exists('venv'): #: TODO: it's not possible for this to exist at the moment!
-                shprint(sh.virtualenv, 'venv')
+            if not args.no_venv:
 
-            if args.dev_cli:
-                #: Try to install from enaml-native-cli folder
-                print("Installing enaml-native-cli...")
-                cli = join(dirname(enaml_native), 'enaml-native-cli')
+                #: Create a venv if one doesn't already exist
+                if not exists('venv'): #: TODO: it's not possible for this to exist at the moment!
+                    shprint(sh.virtualenv, 'venv')
+
+                if args.dev_cli:
+                    #: Try to install from enaml-native-cli folder
+                    print("Installing enaml-native-cli...")
+                    cli = join(dirname(enaml_native), 'enaml-native-cli')
+                    shprint(sh.bash, '-c', 'source venv/bin/activate && '
+                                       'pip install {enaml_native_cli}'
+                                       .format(enaml_native_cli=enaml_native_cli))
+
+                print("Installing enaml-native...")
                 shprint(sh.bash, '-c', 'source venv/bin/activate && '
-                                   'pip install {enaml_native_cli}'
-                                   .format(enaml_native_cli=enaml_native_cli))
+                                       'pip install {enaml_native}'.format(enaml_native=enaml_native))
 
-            print("Installing enaml-native...")
-            shprint(sh.bash, '-c', 'source venv/bin/activate && '
-                                   'pip install {enaml_native}'.format(enaml_native=enaml_native))
-
-            print("==============================================================")
-            print(sh.bash('-c', 'source venv/bin/activate && '
-                                    'enaml-native --help'))
+                print("==============================================================")
+                print(sh.bash('-c', 'source venv/bin/activate && '
+                                        'enaml-native --help'))
 
         print("==============================================================")
         print("Project created successfully!")
