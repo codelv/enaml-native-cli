@@ -22,7 +22,8 @@ def test_init():
     shprint(cmd, 'init', 'HelloWorld', 'com.example.helloworld', 'tmp/',
             '--dev-cli', '.', _debug=True)
 
+    #: TODO... requires android
     #: Try to build
-    os.chdir('tmp/HelloWorld/')
-    shprint(sh.bash, '-c',
-            'source venv/bin/activate && enaml-native build-python --skip-ndk-build', _debug=True)
+    #os.chdir('tmp/HelloWorld/')
+    #shprint(sh.bash, '-c',
+    #        'source venv/bin/activate && enaml-native build-python --skip-ndk-build', _debug=True)

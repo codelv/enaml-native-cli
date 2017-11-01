@@ -142,13 +142,15 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
     # It would be better to check against possible orders other
     # than the first one, but in practice clashes will be rare,
     # and can be resolved by specifying more parameters
-    chosen_order = orders[0]
+
     if len(orders) > 1:
         info('Found multiple valid dependency orders:')
         for order in orders:
             info('    {}'.format(order))
-        info('Using the first of these: {}'.format(chosen_order))
+        chosen_order = sorted(orders,key=lambda o:len(o))[0]
+        info('Using the smallest of these: {}'.format(chosen_order))
     else:
+        chosen_order = orders[0]
         info('Found a single valid recipe set: {}'.format(chosen_order))
 
     if bs is None:
