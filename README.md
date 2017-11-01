@@ -1,5 +1,7 @@
 # enaml-native-cli
 
+[![Build Status](https://travis-ci.org/codelv/enaml-native-cli.svg?branch=master)](https://travis-ci.org/codelv/enaml-native-cli)
+
 Cli for [enaml-native](https://github.com/codelv/enaml-native). This is for the new build system
 which allows more modular app builds.
  

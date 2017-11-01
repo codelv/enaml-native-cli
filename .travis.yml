@@ -40,7 +40,7 @@ install:
 script:
   # Run the enaml test suite
   - cd $TRAVIS_BUILD_DIR
-  - py.test tests --cov enaml-native --cov-report xml -v
+  - py.test tests --cov-report xml -v
 
 after_success:
   - cd $TRAVIS_BUILD_DIR
