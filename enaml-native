@@ -421,10 +421,10 @@ class BuildPython(Command):
         #: Extra cleanup
         self.cmds['trim-assets'].run(args)
 
-    def run_android(self,args):
+    def run_android(self, args):
         ctx = self.ctx
         env = ctx['android']
-        reqs = ",".join(env['dependencies'].keys())
+        reqs = ",".join(["{}{}".format(k, v) for k, v in env['dependencies'].items()])
 
         #: Run ndk build
         if not args.skip_ndk_build:
@@ -686,11 +686,14 @@ class InitPackage(Command):
     help = set_default("Create a new enaml-native package")
     args = set_default([
         ('name', dict(help="Package name")),
-        ('destination', dict(help="Project destination folder")),
+        ('destination', dict(help="Project destination folder", nargs="?")),
     ])
 
+    #: Can be run from anywhere
+    app_dir_required = set_default(False)
+
     def run(self, args):
-        dest = join(args.destination,args.name)
+        dest = abspath(expanduser(join(args.destination if args.destination else '.', args.name)))
         if exists(dest):
             raise ValueError("{} already exists".format(dest))
 
@@ -699,7 +702,6 @@ class InitPackage(Command):
         with cd(dest):
             with open('readme.md', 'w') as f:
                 f.write(textwrap.dedent("""
-
                 # {name}
 
                 A package for enaml-native.
@@ -714,38 +716,72 @@ class InitPackage(Command):
 
                 `enaml-native uninstall {name}`
 
-                """.format(name=args.name)))
+                """.format(name=args.name)).lstrip())
 
             #: enaml-native package setup
             with open('setup.py', 'w') as f:
                 f.write(textwrap.dedent("""
-                #: ====================================================================
-                #: Created with 'enaml-native init-package'
-                #: Modify as needed
-                #: ====================================================================
+                \"\"\"
+                Created with 'enaml-native init-package'
+                
+                This defines what files to include when a user installs this into
+                their app's virtualenv. It should include any required `android`
+                and`ios` libraries as data_files so they can be linked to the
+                app when this package is installed.
+                
+                ## Customize the project
+                
+                ## Adding P4A Recipes for python sources
+                This packages contents are NOT installed on the app! That is
+                done by any p4a_recipes added here using the p4a_recipe entry point.
+                The user must also include your recipe in their apps `package.json` 
+                in the app dependencies.
+                
+                ## Linking native libraries
+                You can define an `enaml_native_linker` and `enaml_native_unlinker`
+                entry_points here to customize how this package "links" it's native
+                libraries to the users's android and ios projects.
+                
+                Likewise, you can define `enaml_native_post_install` and `enaml_native_pre_install`
+                entry points to preform any operations when this package is installed or removed.
+                
+                ## Customizing the cli
+                
+                You can add your own commands to the enaml-native cli with the 
+                `enaml_native_command` entry point. A command must be a subclass of the enaml-native
+                Command class. Any commands added in can be used via `enaml-native <command>`
+                when your package is installed.
+                
+                \"\"\"
                 import os
                 import fnmatch
                 from setuptools import setup
 
                 def find_data_files(dest, *folders):
                     matches = dict()
-                    excluded_types = ['.pyc', '.enamlc']
-                    excluded_dirs = ['build']
-                    dest = os.path.join('packages',dest) #: goes into venv/packages/<name>
+                    #: Want to install outside the venv volder in the packages folder
+                    dest = os.path.join('packages', dest)
+                
+                    excluded_types = ['.pyc', '.enamlc', '.apk', '.iml','.zip', '.tar.gz', '.so']
+                    excluded_dirs = ['android/build', 'android/captures', 'android/assets']
                     for folder in folders:
+                        if not os.path.isdir(folder):
+                            k = os.path.join(dest, dirpath)
+                            matches[k].append(os.path.join(dest,folder))
+                            continue
                         for dirpath, dirnames, files in os.walk(folder):
                             #: Skip build folders and exclude hidden dirs
-                            if [d for d in dirpath.split("/") if d.startswith(".") or d in excluded_dirs]:
+                            if ([d for d in dirpath.split("/") if d.startswith(".")] or
+                                    [excluded_dir for excluded_dir in excluded_dirs if excluded_dir in dirpath]):
                                 continue
-                            k = os.path.join(dest,dirpath)
+                            k = os.path.join(dest, dirpath)
                             if k not in matches:
                                 matches[k] = []
                             for f in fnmatch.filter(files, '*'):
                                 if [p for p in excluded_types if f.endswith(p)]:
                                     continue
                                 m = os.path.join(dirpath, f)
-                                matches[k].append(m)
-                    return matches.items()
+                                matches[k].app
 
                 setup(
                     name="{name}",
@@ -760,13 +796,107 @@ class InitPackage(Command):
                     install_requires=['enaml-native-cli'],
                     classifiers=["Framework :: enaml-native"],
                     entry_points={{
-                        'enaml_native_package': [
-                            '{pkg} = {pkg}.package:get_package'
-                        ]
+                        #: Add any other recipes here
+                        'p4a_recipe': [
+                            '{pkg} = {pkg}:get_package'
+                        ],
+                        
+                        #: Customize linking of native projects
+                        #'enaml_native_linker': ['{pkg}:app_linker'],
+                        #'enaml_native_unlinker': ['{pkg}:app_unlinker'],
+                        #'enaml_native_post_install': ['{pkg}:app_post_install'],
+                        #'enaml_native_pre_uninstall': ['{pkg}:app_pre_uninstall'],
+                        
+                        #: Add custom commands to the enaml-native cli
+                        #'enaml_native_command': [
+                        #    '{pkg}:<CommandSubclass>'
+                        #],
                     }},
                 )
                 """.format(name=args.name, pkg=args.name.replace("-", "_"),
-                           user=getpass.getuser()).lstrip()))
+                           user=getpass.getuser())).lstrip())
+
+            with open('{}.py'.format(args.name.replace("-", "_")), 'w') as f:
+                f.write(textwrap.dedent("""
+                \"\"\" 
+                
+                Created with 'enaml-native init-package'
+                This defines a recipe that p4a can use to build your packages `src`
+                and install it on the app. Modify as needed.
+                 
+                \"\"\"
+                from pythonforandroid.recipe import EnamlNativeRecipe as BaseRecipe
+
+                class EnamlNativeRecipe(BaseRecipe):
+                    #: Note: You can also extend any other recipe subclass as needed
+                    #: Recipe version
+                    version = '1.0'
+                    
+                    #: Recipe dependencies
+                    depends = ['enaml-native']
+                    
+                    #: Name of your recipe (must add this to your package.json to use in the app
+                    name = '{name}'
+                    
+                    #: Recipe zips your package's `src/` folder and uses setup file
+                    #: there along with this recipe build
+                    url = 'src.zip'
+                
+                
+                def get_recipe():
+                    \"\"\" Return the recipe for p4a \"\"\" 
+                    return (EnamlNativeRecipe(), __file__)
+                    
+                def app_linker(ctx):
+                    \"\"\" Add any code to link your native libraries here
+                    
+                    Parameters
+                    -------------
+                        ctx: dict is the package.json dictionary
+                    Returns
+                    ----------
+                        bool: True to indicate to the default linker should not be run
+                        
+                    \"\"\"
+                    return False
+                    
+                    
+                def app_unlinker(ctx):
+                    \"\"\" Add any code to unlink your native libraries here
+                    
+                    Parameters
+                    -------------
+                        ctx: dict is the package.json dictionary
+                    Returns
+                    ----------
+                        bool: True to indicate to the default unlinker should not be run
+                        
+                    \"\"\"
+                    return False
+                    
+                def app_post_install(ctx):
+                    \"\"\" Add any code here to run after the user installs this package
+                    The return value is ignored.
+                    
+                    Parameters
+                    -------------
+                         ctx: dict is the package.json dictionary
+                    
+                    \"\"\"
+                    pass
+                    
+                def app_pre_uninstall(ctx):
+                    \"\"\" Add any code here to run when the user uninstalls this package.
+                    The return value is ignored.
+                    
+                    Parameters
+                    -------------
+                        ctx: dict is the package.json dictionary
+                    
+                    \"\"\"
+                    pass
+
+                """.format(name=args.name)))
 
             #: Create folders
             os.makedirs('src')  #: Python source here
@@ -774,10 +904,15 @@ class InitPackage(Command):
                 #: App  package setup
                 with open('setup.py', 'w') as f:
                     f.write(textwrap.dedent("""
-                    #: ====================================================================
-                    #: Created with 'enaml-native init-package'
-                    #: Modify as needed
-                    #: ====================================================================
+                    \"\"\"
+                    Created with 'enaml-native init-package'
+                    This setup file will be used to define what is actually installed
+                    in the apps python bundle. Anything included by this setup file
+                    will be accessible within your app. 
+                    
+                    Note: Any c/c++/cython compiled components must be created with a 
+                    p4a recipe!
+                    \"\"\"
                     from setuptools import setup, find_packages
 
                     #: Put your library dependencies here
@@ -789,8 +924,7 @@ class InitPackage(Command):
                         license='MIT',
                         url="",
                         description="{name} package for enaml-native",
-                        packages=find_packages('.'),
-                        #package_dir={{'': '*'}},
+                        packages=find_packages(),
                         install_requires=['enaml-native'],
                     )
                     """.format(name=args.name, user=getpass.getuser())).lstrip())
@@ -1748,9 +1882,7 @@ class EnamlNativeCli(Atom):
                     "sdk":"~/Android/Sdk",
                     "arches": ["x86", "armeabi-v7a"],
                     "dependencies": {
-                        "python2crystax": "2.7.10",
-                        "enaml-native": ">=2.1",
-                        "ply": "==3.10"
+                        "enaml-native": ">=2.1"
                     },
                     "excluded": [],
                 },

@@ -11,8 +11,7 @@ Created on Oct 31, 2017
 """
 import os
 import sh
-import sys
-sys.path.append('python-for-android')
+
 
 from pythonforandroid.logger import shprint
 
@@ -27,3 +26,8 @@ def test_init():
     #os.chdir('tmp/HelloWorld/')
     #shprint(sh.bash, '-c',
     #        'source venv/bin/activate && enaml-native build-python --skip-ndk-build', _debug=True)
+
+
+def test_init_package():
+    cmd = sh.Command('enaml-native')
+    shprint(cmd, 'init-package', 'enaml-native-test', 'tmp/', _debug=True)
