@@ -1,6 +1,12 @@
 sudo: required
 dist: trusty
 language: python
+jdk: oraclejdk8
+android:
+  components:
+    - tools
+    - android-25
+    - build-tools-26.0.3
 
 branches:
   only:
@@ -10,7 +16,12 @@ matrix:
   include:
     - env: PYTHON=2.7
 
+
 before_install:
+  #: Install crystax
+  - wget https://www.crystax.net/download/crystax-ndk-10.3.2-linux-x86_64.tar.xz
+  - mkdirs ~/Android/Crystax
+  - tar -xzvf crystax-ndk-10.3.2-linux-x86_64.tar.xz ~/Android/Crystax
 
   # Just to be sure
   - pip install -U pip

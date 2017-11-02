@@ -12,7 +12,6 @@ Created on Oct 31, 2017
 import os
 import sh
 
-
 from pythonforandroid.logger import shprint
 
 
@@ -21,11 +20,10 @@ def test_init():
     shprint(cmd, 'init', 'HelloWorld', 'com.example.helloworld', 'tmp/',
             '--dev-cli', '.', _debug=True)
 
-    #: TODO... requires android
     #: Try to build
-    #os.chdir('tmp/HelloWorld/')
-    #shprint(sh.bash, '-c',
-    #        'source venv/bin/activate && enaml-native build-python --skip-ndk-build', _debug=True)
+    os.chdir('tmp/HelloWorld/')
+    shprint(sh.bash, '-c',
+           'source venv/bin/activate && enaml-native build-python', _debug=True)
 
 
 def test_init_package():
