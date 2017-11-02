@@ -391,15 +391,40 @@ class CrossCompile(Command):
 class BuildPython(Command):
     """ Builds an enaml-native python app using the following steps:
 
-        For Android:
+        Android
+        ----------
         1. Runs ndk-build to build JNI modules
         2. Run p4a apk to build python requirements for each arch
             and copies them to the lib a local folder
         3. Pull all so files from site-packages and rename to lib.pkg.to.so
             and place them in the lib/<arch> folder
 
-        For iOS:
+        iOS
+        ----------
         1. Run p4i toolchain build <req>
+        
+        Debugging
+        ----------
+        To debug why build is failing:
+        
+        1. Make sure the download is correct in
+            ~/.local/share/python-for-android/packages/<recipe-name>
+        
+        2. Make sure the patches applied and build is correct under
+            ~/.local/share/python-for-android/build/other_builds/<recipe-name>
+        
+        3. Make sure everything was installed to
+            ~/.local/share/python-for-android/dists/enaml-native/python
+            
+        4. Finally make sure everything was copied to:
+            Python sources:
+            <app dir>/build/python/<arch>
+            
+            Native libraries:
+            <app dir>/venv/packages/enaml-native/android/src/main/libs/<arch>/
+            
+        
+        
     """
     title = set_default("build-python")
     help = set_default("Build the python requirements")
@@ -499,7 +524,8 @@ class BuildPython(Command):
             with cd('{python_build_dir}/{arch}/site-packages/'.format(**cfg)):
                 entry_points = {}
                 try:
-                    for ep in glob("*/entry_points.txt"):
+                    for ep in glob(expanduser("~/.local/share/python-for-android/"
+                                   "dists/enaml-native/python/site-packages/*/entry_points.txt")):
                         config = ConfigParser()
                         config.read(ep)
                         for section in config.sections():
