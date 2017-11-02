@@ -11,6 +11,8 @@ Created on Oct 31, 2017
 """
 import os
 import sh
+import sys
+sys.path.append('python-for-android')
 
 from pythonforandroid.logger import shprint
 
