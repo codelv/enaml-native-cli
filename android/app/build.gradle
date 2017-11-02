@@ -16,18 +16,12 @@ android {
     }
     buildTypes {
         debug {
-            resValue "string", "google_maps_key", project.findProperty("GOOGLE_MAPS_API_KEY")
         }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            resValue "string", "google_maps_key", project.findProperty("GOOGLE_MAPS_API_KEY")
         }
     }
-//    sourceSets.main {
-//        jni.srcDirs = []
-//        jniLibs.srcDir 'src/main/libs'
-//    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -40,11 +34,7 @@ dependencies {
     compile fileTree(include: ['*.jar', '*.so'], dir: 'libs')
     testCompile 'junit:junit:4.12'
 
-    // From ../packages/
-    compile project(':enaml-native')
-    compile project(':enaml-native-icons')
     // From ../venv/packages/
-    //compile project(':enaml-native-maps')
-    //compile project(':enaml-native-charts')
+    compile project(':enaml-native')
 }
 
