@@ -21,7 +21,7 @@ before_install:
   #: Setup Android SDK
   - sudo dpkg --add-architecture i386
   - sudo apt update
-  - sudo apt install -y build-essential ccache git zlib1g-dev python2.7 python2.7-dev libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip ant ccache autoconf libtool
+  - sudo apt install -y build-essential ccache git zlib1g-dev python2.7 python2.7-dev python-virtualenv libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip ant ccache autoconf libtool
   - sudo apt install -y openjdk-8-jdk
 
 
@@ -31,11 +31,11 @@ before_install:
   - wget https://www.crystax.net/download/crystax-ndk-10.3.2-linux-x86_64.tar.xz
   - tar xf crystax-ndk-10.3.2-linux-x86_64.tar.xz -C ~/Android/Crystax
 
-  # Just to be sure
-  - pip install -U pip
-
-  # pip is not able to install distribute: "ImportError: No module named _markerlib"
-  - easy_install distribute
+  # Create python virtualenv
+  - virtualenv ~/venv
+  - source ~/venv/bin/activate
+  - python --version
+  - pip --version
 
   #: Install cython
   - pip install Cython --install-option="--no-cython-compile"
