@@ -147,8 +147,18 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
         info('Found multiple valid dependency orders:')
         for order in orders:
             info('    {}'.format(order))
-        chosen_order = sorted(orders,key=lambda o:len(o))[0]
-        info('Using the smallest of these: {}'.format(chosen_order))
+
+        order_weights = [0 for o in orders]
+        for i, order in enumerate(orders):
+            for name in order:
+                try:
+                    recipe = Recipe.get_recipe(name, ctx)
+                    order_weights[i] += 1
+                except IOError:
+                    pass
+        results = sorted(zip(orders, order_weights), key=lambda ow:(len(ow[0]) - ow[1]))[0]
+        chosen_order, chosen_weight = results
+        info('Using the smallest order with the most recipes installed of these: {}'.format(chosen_order))
     else:
         chosen_order = orders[0]
         info('Found a single valid recipe set: {}'.format(chosen_order))

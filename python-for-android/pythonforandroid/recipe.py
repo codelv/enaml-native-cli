@@ -337,7 +337,7 @@ class Recipe(with_metaclass(RecipeMeta)):
 
     def get_recipe_dir(self):
         # AND: Redundant, an equivalent property is already set by get_recipe
-        return join(self.ctx.root_dir, 'recipes', self.name)
+        return self.recipe_dir
 
     # Public Recipe API to be subclassed if needed
 
@@ -924,6 +924,11 @@ class PythonRecipe(Recipe):
     def install_hostpython_package(self, arch):
         env = self.get_hostrecipe_env(arch)
         real_hostpython = sh.Command(self.real_hostpython_location)
+        if ('python2crystax' in self.ctx.recipe_build_order or
+            'python3crystax' in self.ctx.recipe_build_order):
+            shprint(real_hostpython, 'setup.py', 'install', '-O2',
+                    _env=env, *self.setup_extra_args)
+            return
         shprint(real_hostpython, 'setup.py', 'install', '-O2',
                 '--root={}'.format(dirname(self.real_hostpython_location)),
                 '--install-lib=Lib/site-packages',
@@ -931,10 +936,18 @@ class PythonRecipe(Recipe):
 
 
 class EnamlNativeRecipe(PythonRecipe):
+    """ A python recipe that builds directly from the source. """
+    #: Anything using setuptools fails without this
+    call_hostpython_via_targetpython = False
+
+    def get_package_root(self):
+        """ Get the path where the `src` folder exists """
+        return os.path.abspath(join(sys.prefix, 'packages', self.name))
+
     def download(self):
         """ Copy it right from the source """
         #: Zip the srz
-        src_root = os.path.abspath(join(sys.prefix, 'packages', self.name))
+        src_root = self.get_package_root()
         with current_directory(src_root):
             dst_root = join(self.ctx.packages_path, self.name)
             if not exists(dst_root):
@@ -1014,10 +1027,10 @@ class CppCompiledComponentsPythonRecipe(CompiledComponentsPythonRecipe):
                                                 " -L{ctx.ndk_dir}/sources/python/2.7/libs/{arch.arch}" \
                                                 " -lpython2.7" \
                                                 " -lstlport_shared".format(**keys)
-                                            
+
         env['CXXFLAGS'] = env['CFLAGS'] + ' -frtti -fexceptions'
-        
-        
+
+
 
 
         return env
@@ -1100,7 +1113,7 @@ class CythonRecipe(PythonRecipe):
                      'cythonising.')
             if not '--gdb' in self.cython_args:
                 # Then we don't want debug info...
-                
+
                 if 'python2' in self.ctx.recipe_build_order:
                     info('Stripping object files')
                     build_lib = glob.glob('./build/lib*')

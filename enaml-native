@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/home/jrm/Workspace/tmp/TestApp/venv/bin/python
 import sh
 import os
 import re
@@ -257,10 +257,9 @@ class Init(Command):
                 if args.dev_cli:
                     #: Try to install from enaml-native-cli folder
                     print("Installing enaml-native-cli...")
-                    cli = join(dirname(enaml_native), 'enaml-native-cli')
                     shprint(sh.bash, '-c', 'source venv/bin/activate && '
-                                       'pip install {enaml_native_cli}'
-                                       .format(enaml_native_cli=enaml_native_cli))
+                                           'pip install {enaml_native_cli}'
+                            .format(enaml_native_cli=enaml_native_cli))
 
                 print("Installing enaml-native...")
                 shprint(sh.bash, '-c', 'source venv/bin/activate && '
@@ -268,7 +267,7 @@ class Init(Command):
 
                 print("==============================================================")
                 print(sh.bash('-c', 'source venv/bin/activate && '
-                                        'enaml-native --help'))
+                                    'enaml-native --help'))
 
         print("==============================================================")
         print("Project created successfully!")
@@ -315,19 +314,35 @@ class CleanPython(Command):
 
 
 class NdkBuild(Command):
+    """ Run ndk-build on enaml-native and any packages
+        that define an `enaml_native_ndk_build` entry_point.
+    """
     title = set_default("ndk-build")
     help = set_default("Run ndk-build on the android project")
 
     def run(self, args=None):
         ctx = self.ctx
-        ndk_build = sh.Command(os.path.expanduser(join(ctx['android']['ndk'], 'ndk-build')))
-        arches = ctx['android']['arches']
+        env = ctx['android']
+        ndk_build = sh.Command(os.path.expanduser(join(env['ndk'], 'ndk-build')))
+        arches = env['arches']
 
-        jni_dir = ctx['android'].get(
+        #: Where the jni files are
+        jni_dir = env.get(
             'jni_dir',
             "{}/{}/enaml-native/android/src/main/jni".format(os.getcwd(), Link.package_dir)
         )
+        if 'jni_dir' not in env:
+            env['jni_dir'] = jni_dir
 
+        #: Where native libraries go for each arch
+        ndk_build_dir = env.get(
+            'ndk_build_dir',
+            "{}/{}/enaml-native/android/src/main/libs".format(os.getcwd(), Link.package_dir)
+        )
+        if 'ndk_build_dir' not in env:
+            env['ndk_build_dir'] = ndk_build_dir
+
+        #: Do ndk-build in the jni dir
         with cd(jni_dir):
 
             #: Patch Applicaiton.mk to have the correct ABI's
@@ -341,11 +356,36 @@ class NdkBuild(Command):
                     line = 'APP_ABI := {}'.format(" ".join(arches))
                 new_mk.append(line)
 
-            with open('Application.mk','w') as f:
+            with open('Application.mk', 'w') as f:
                 f.write("\n".join(new_mk))
 
             #: Now run nkd-build
             shprint(ndk_build)
+
+        #: Add entry point so packages can include their own jni libs
+        dependencies = env['dependencies'].keys()
+        for ep in pkg_resources.iter_entry_points(group="enaml_native_ndk_build"):
+            for name in dependencies:
+                if ep.name.replace("-", '_') == name.replace("-", '_'):
+                    ndk_build_hook = ep.load()
+                    print("Custom ndk_build_hook {} found for '{}'. ".format(ndk_build_hook, name))
+                    ndk_build_hook(self.ctx)
+                    break
+
+        #: Now copy all compiled python modules to the jniLibs dir so android includes them
+        for arch in arches:
+            cfg = dict(
+                arch=arch,
+                ndk_build_dir=ndk_build_dir,
+            )
+            cfg.update(env)  # get python_build_dir from the env
+
+            #: Where .so files go
+            dst = abspath('{ndk_build_dir}/{arch}'.format(**cfg))
+
+            #: Collect all .so files to the lib dir
+            with cd('{python_build_dir}/{arch}/modules/'.format(**cfg)):
+                sh.cp('-R', glob('*.so'), dst)
 
 
 class CrossCompile(Command):
@@ -418,10 +458,10 @@ class BuildPython(Command):
             
         4. Finally make sure everything was copied to:
             Python sources:
-            <app dir>/build/python/<arch>
+            <app dir>/build/python/<arch>/site-packages/
             
             Native libraries:
-            <app dir>/venv/packages/enaml-native/android/src/main/libs/<arch>/
+            <app dir>/build/python/<arch>/modules/
             
         
         
@@ -451,10 +491,8 @@ class BuildPython(Command):
         env = ctx['android']
         reqs = ",".join(["{}{}".format(k, v) for k, v in env['dependencies'].items()])
 
-        #: Run ndk build
-        if not args.skip_ndk_build:
-            #: Um, we're passing args from another command?
-            self.cmds['ndk-build'].run(args)
+        #: Configs we used to build for each arch
+        configs = []
 
         #: Build for each arch
         for arch in env['arches']:
@@ -464,6 +502,9 @@ class BuildPython(Command):
                 bundle_id=ctx['bundle_id']
             )
             cfg.update(env)
+
+            #: Save it so we can use it later
+            configs.append(cfg)
 
             #: Get current directory where command was run
             cfg['ndk_build_dir'] = env.get(
@@ -476,6 +517,9 @@ class BuildPython(Command):
 
             #: Add minification
             cfg['minify'] = '--minify ' if (args and args.minify) else ''
+
+            #: Add ndk version (if not using crystax)
+            cfg['ndk_version'] = "" if "crystax" in cfg['ndk'].lower() else '--ndk-version=15 '
 
             #: Where should we put our built python modules and packages
             #cfg['python_build_dir'] = os.path.abspath('build/python')
@@ -503,21 +547,73 @@ class BuildPython(Command):
                                     '--sdk-dir={sdk} '
                                     '--ndk-dir={ndk} '
                                     '--ndk-platform=21 '
+                                    '--ndk-version=15 ' # 
                                     '--ndk-build-dir={ndk_build_dir} '
+                                    '{ndk_version}'
                                     '{debug}'
                                     '{minify}'
                                     '--copy-libs'.format(**cfg).split(' '), _debug=True)
 
-            #: Copy lib folder
-            shprint(sh.cp,'-R',
-                    expanduser('~/.local/share/python-for-android/dists/enaml-native/libs/{arch}'.format(**cfg)),
-                    cfg['ndk_build_dir'])
+            #: If not crystax, make it like crystax
+            cfg['p4a_dist_dir'] = expanduser('~/.local/share/python-for-android/dists/enaml-native')
+            if not exists('{p4a_dist_dir}/python'.format(**cfg)):
+                os.makedirs('{p4a_dist_dir}/python/'.format(**cfg))
 
-            #: Copy modules
-            for f in ['modules', 'site-packages']:
-                shprint(sh.cp,'-R',
-                        expanduser('~/.local/share/python-for-android/dists/enaml-native/python/{}'.format(f)),
-                        '{python_build_dir}/{arch}'.format(**cfg))
+                #: Using custom built python
+                #: Move site-packages out
+                shprint(sh.cp, '-R',
+                        expanduser('~/.local/share/python-for-android/build/python-installs/'
+                                   'enaml-native/lib/python2.7/site-packages/'),
+                        '{p4a_dist_dir}/python/'.format(**cfg))
+
+                #: Move the lib-dynload to modules
+                shprint(sh.cp, '-R',
+                        expanduser('~/.local/share/python-for-android/build/python-installs/'
+                                   'enaml-native/lib/python2.7/lib-dynload'),
+                        '{p4a_dist_dir}/python/modules'.format(**cfg))
+
+                #: Now "extract" the stdlib to the site-packages folder
+                #: TODO: It's probably a bad idea to flatten it like this
+                #:       need to benchmark to see if there's any significant difference between
+                #:       single vs multiple sys.path entries (in theory single should be faster)
+                #: TODO: shprint doesn't support the glob syntax
+                sh.cp('-R',
+                      glob(expanduser('~/.local/share/python-for-android/build/python-installs/'
+                                      'enaml-native/lib/python2.7/*')),
+                      '{p4a_dist_dir}/python/site-packages/'.format(**cfg))
+
+                #: Remove the nested site-packages (it's copied to the root level above)
+                shprint(sh.rm, '-R',
+                        '{p4a_dist_dir}/python/site-packages/site-packages'.format(**cfg))
+                shprint(sh.rm, '-R',
+                        '{p4a_dist_dir}/python/site-packages/lib-dynload'.format(**cfg))
+
+                #: Copy include headers
+                shprint(sh.cp, '-R',
+                        expanduser('~/.local/share/python-for-android/build/python-installs/'
+                                   'enaml-native/include/'),
+                        '{p4a_dist_dir}/python/'.format(**cfg))
+            else:
+                #: If it is crystax, copy the headers over so we can use the same build script
+
+                #: Clean
+                dst = '{p4a_dist_dir}/python/include/python2.7/'.format(**cfg)
+                if exists(dst):
+                    sh.rm('-R', dst)
+                os.makedirs(dst)
+
+                #: Copy cryxtax python include headers
+                sh.cp('-R', glob('{ndk}/sources/python/2.7/include/python/*'.format(**cfg)), dst)
+
+            #: Now copy everything to the apps dir
+            dst = '{python_build_dir}/{arch}/'.format(**cfg)
+            if exists(dst):
+                #: Clean
+                sh.rm('-R', dst)
+            os.makedirs(dst)
+
+            #: Copy from p4a dist dir to apps build/python dir
+            sh.cp('-R', glob('{p4a_dist_dir}/python/*'.format(**cfg)), dst)
 
             #: Collect all entry_points.txt and merge them into entry_points.json
             #: This allows use to use wnetry points in the app by reading from the file
@@ -540,22 +636,28 @@ class BuildPython(Command):
                 except:
                     print("Failed to convert entry points")
 
-            #: Copy ca-cert (tornado only)
-            cert_path = '{python_build_dir}/{arch}/site-packages/tornado/'.format(**cfg)
-            if os.path.exists(cert_path):
-                with cd(cert_path):
-                    shprint(sh.cp, '/etc/ssl/certs/ca-certificates.crt', '.')
-
-            #: Where .so files go
-            dst = abspath('{ndk_build_dir}/{arch}'.format(**cfg))
-
-            #: Collect all .so files and rename them
+            #: Collect all .so files and rename them and move to build/python/arch/modules
             with cd('{python_build_dir}/{arch}'.format(**cfg)):
+                dst = abspath('modules')
                 for mod in sh.find('.', '-name', '*.so').stdout.strip().split("\n"):
                     #: Strip ./modules or ./site-packages
                     pgk = ".".join(['lib']+mod.split("/")[2:])
-                    #: Rename mod.so to pkg.mod.so and move to libs
+                    #: Rename mod.so to lib.mod.so and move to libs
                     shprint(sh.mv, mod, join(dst, pgk))
+
+                #: Now copy lib folder contents unchanged to modules
+                sh.cp('-R', glob('{p4a_dist_dir}/libs/{arch}/*.so'.format(**cfg)), dst)
+
+                #: If crystax make sure we copy libpython2.7.so the new nkd-build script doesnt
+                #: link directly to it from the ndk
+                if not exists('modules/libpython2.7.so'):
+                    sh.cp('{ndk}/sources/python/2.7/libs/{arch}/libpython2.7.so'.format(**cfg),
+                          'modules')
+
+        #: Finally run ndk build (which now copies the modules into the android jniLibs folder)
+        if not args.skip_ndk_build:
+            #: Um, we're passing args from another command?
+            self.cmds['ndk-build'].run(args)
 
     def run_ios(self, args):
         ctx = self.ctx
@@ -607,6 +709,7 @@ class BundleAssets(Command):
     args = set_default([
         ('-p', dict(action='store_true', help="Create bundle by pulling from device")),
         ('--release', dict(action='store_true', help="Create a release bundle")),
+        ('--skip-ndk-build', dict(action='store_true', help="Don't run ndk-build")),
     ])
 
     def run(self, args=None):
@@ -616,6 +719,11 @@ class BundleAssets(Command):
         #: Now copy to android assets folder
         #: Extracted file type
         bundle = 'python.tar.gz'
+
+        #: Run ndk build
+        if not args.skip_ndk_build:
+            #: Um, we're passing args from another command?
+            self.cmds['ndk-build'].run(args)
 
         #: Clean each arch
         for arch in env['arches']:
@@ -1012,7 +1120,7 @@ class Install(Command):
                 if ep.name.replace("-", '_') == name.replace("-", '_'):
                     post_install_hook = ep.load()
                     print("Custom post_install_hook {} found for '{}'. ".format(post_install_hook,
-                                                                                 name))
+                                                                                name))
                     post_install_hook(self.ctx)
                     break
 
@@ -1908,7 +2016,8 @@ class EnamlNativeCli(Atom):
                     "sdk":"~/Android/Sdk",
                     "arches": ["x86", "armeabi-v7a"],
                     "dependencies": {
-                        "enaml-native": ">=2.1"
+                        "python2crystax": "",
+                        "enaml-native": ""
                     },
                     "excluded": [],
                 },

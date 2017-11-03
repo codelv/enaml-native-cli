@@ -71,11 +71,9 @@ Build and run your app
 ```bash
 
 #: Build python requirements
-enaml-native build-python
-enaml-native build-android # Required to do a gradle sync
-enaml-native build-python # Yes, at the moment you must do it again
+enaml-native build-python # Build python
 
-#: Run the app
+#: Run the app (or build-android) to build
 enaml-native run-android
 
 ```

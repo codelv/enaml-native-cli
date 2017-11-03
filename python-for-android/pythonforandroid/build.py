@@ -506,7 +506,8 @@ class Context(object):
         # AND: This *must* be replaced with something more general in
         # order to support multiple python versions and/or multiple
         # archs.
-        if self.python_recipe.from_crystax:
+        if ((self.python_recipe and self.python_recipe.from_crystax)
+                or 'python2crystax' in self.recipe_build_order):
             return self.get_python_install_dir()
         return join(self.get_python_install_dir(),
                     'lib', 'python2.7', 'site-packages')
