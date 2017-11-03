@@ -20,9 +20,8 @@ matrix:
 before_install:
   #: Install crystax
   - wget https://www.crystax.net/download/crystax-ndk-10.3.2-linux-x86_64.tar.xz
-  - mkdir ~/Android
   - mkdir ~/Android/Crystax
-  - tar xf crystax-ndk-10.3.2-linux-x86_64.tar.xz ~/Android/Crystax
+  - tar xf crystax-ndk-10.3.2-linux-x86_64.tar.xz -C ~/Android/Crystax
 
   # Just to be sure
   - pip install -U pip
