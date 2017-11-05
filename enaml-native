@@ -208,11 +208,12 @@ class Init(Command):
                         #: Called to start your app 
                         from enamlnative.android.app import AndroidApplication
                         app = AndroidApplication()
-                        #app.debug = True #: Makes a lot of lag!
-                        #app.dev = 'server' # "10.0.2.2" # or 'server'
+                        #app.debug = True #: Uncomment to debug the bridge
+                        #app.dev = 'server' #: Uncomment to enable reloading
                         app.reload_view = reload_view
                         app.deferred_call(load_view, app)
                         app.start()
+                        
                     
                     def load_view(app):
                         #: Create and show the enaml view
@@ -220,7 +221,6 @@ class Init(Command):
                         with enaml.imports():
                             from view import ContentView
                             app.view = ContentView()
-                        #: Time how long it takes
                         app.show_view()
                     
                     
@@ -231,6 +231,8 @@ class Init(Command):
                             import view
                             reload(view)
                             app.view = view.ContentView()
+                        app.show_view()
+                        
                     """))
 
                 with open('view.enaml', 'w') as f:
@@ -834,7 +836,7 @@ class InitPackage(Command):
         #: Create the basic structure
         os.makedirs(dest)
         with cd(dest):
-            with open('readme.md', 'w') as f:
+            with open('README.md', 'w') as f:
                 f.write(textwrap.dedent("""
                 # {name}
 
@@ -845,6 +847,8 @@ class InitPackage(Command):
                 To install:
 
                 `enaml-native install {name}`
+                
+                and add `{name}:""` to the dependencies in `package.json`.
 
                 To remove:
 
@@ -891,12 +895,13 @@ class InitPackage(Command):
                 import fnmatch
                 from setuptools import setup
 
-                def find_data_files(dest, *folders):
+
+                def find_data_files(dest, folders):
                     matches = dict()
                     #: Want to install outside the venv volder in the packages folder
                     dest = os.path.join('packages', dest)
                 
-                    excluded_types = ['.pyc', '.enamlc', '.apk', '.iml','.zip', '.tar.gz', '.so']
+                    excluded_types = ['.pyc', '.enamlc', '.apk', '.iml', '.zip', '.tar.gz', '.so']
                     excluded_dirs = ['android/build', 'android/captures', 'android/assets']
                     for folder in folders:
                         if not os.path.isdir(folder):
@@ -915,7 +920,9 @@ class InitPackage(Command):
                                 if [p for p in excluded_types if f.endswith(p)]:
                                     continue
                                 m = os.path.join(dirpath, f)
-                                matches[k].app
+                                matches[k].append(m)
+                    return matches.items()
+
 
                 setup(
                     name="{name}",
@@ -924,9 +931,9 @@ class InitPackage(Command):
                     author_email="",
                     license='MIT',
                     url="",
-                    description="{name} package for enaml-native-cli",
+                    description="{name} package for enaml-native",
                     long_description=open("README.md").read(),
-                    data_files=find_data_files("{name}",['android','ios','src']),
+                    data_files=find_data_files("{name}", ['android', 'ios', 'src']),
                     install_requires=['enaml-native-cli'],
                     classifiers=["Framework :: enaml-native"],
                     entry_points={{
@@ -961,6 +968,7 @@ class InitPackage(Command):
                 \"\"\"
                 from pythonforandroid.recipe import EnamlNativeRecipe as BaseRecipe
 
+
                 class EnamlNativeRecipe(BaseRecipe):
                     #: Note: You can also extend any other recipe subclass as needed
                     #: Recipe version
@@ -980,6 +988,7 @@ class InitPackage(Command):
                 def get_recipe():
                     \"\"\" Return the recipe for p4a \"\"\" 
                     return (EnamlNativeRecipe(), __file__)
+                
                     
                 def app_linker(ctx):
                     \"\"\" Add any code to link your native libraries here
@@ -1007,6 +1016,7 @@ class InitPackage(Command):
                         
                     \"\"\"
                     return False
+                
                     
                 def app_post_install(ctx):
                     \"\"\" Add any code here to run after the user installs this package
@@ -1018,6 +1028,7 @@ class InitPackage(Command):
                     
                     \"\"\"
                     pass
+                 
                     
                 def app_pre_uninstall(ctx):
                     \"\"\" Add any code here to run when the user uninstalls this package.
@@ -2100,17 +2111,23 @@ def configure_path():
     except:
         user_base = join(expanduser('~'), '.local')
 
-    for root in [join(dirname(realpath(__file__))),
+    #: Let user configure with an ENV variable
+    user_defined_prefix = os.environ.get('ENAML_NATIVE_ROOT', '')
+
+    for root in [join(user_defined_prefix, 'enaml-native-cli')
+                 join(dirname(realpath(__file__))),
                  join(sys.prefix, 'packages', 'enaml-native-cli'),  #: venv or system install
+                 join(sys.prefix, 'local', 'packages', 'enaml-native-cli'),  #: system install
                  join(user_base, 'packages', 'enaml-native-cli')]:  #: user dir
-        if exists(join(root, 'python-for-android')):
+        if exists(root) and exists(join(root, 'python-for-android')):
             os.environ['ENAML_NATIVE_ROOT'] = abspath(expanduser(root))
             os.environ['P4A_ROOT'] = join(root, 'python-for-android')
             os.environ['P4I_ROOT'] = join(root, 'python-for-ios')
 
             sys.path.append(os.environ['P4A_ROOT'])
             return
-    raise ValueError("Could not find the enaml-native-cli/python-for-android directory")
+    raise ValueError("Could not find the enaml-native-cli install directory. "
+                     "You can set 'ENAML_NATIVE_ROOT' to the path in your environment if needed.")
 
 
 def main():
