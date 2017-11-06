@@ -939,7 +939,7 @@ class InitPackage(Command):
                     entry_points={{
                         #: Add any other recipes here
                         'p4a_recipe': [
-                            '{pkg} = {pkg}:get_package'
+                            '{pkg} = {pkg}:get_recipe'
                         ],
                         
                         #: Customize linking of native projects
@@ -1071,6 +1071,14 @@ class InitPackage(Command):
                         description="{name} package for enaml-native",
                         packages=find_packages(),
                         install_requires=['enaml-native'],
+                        entry_points={{
+                            #: Uncomment to add your custom widgets to the builtin api
+                            #'enaml_native_widget': ['{name} = <pkg>.widgets.api:install'],
+                            #'enaml_native_android_api': ['{name} = <pkg>.android.api:install'],
+                            #'enaml_native_android_factories': ['{name} = <pkg>.android.factories:install'],
+                            #'enaml_native_ios_api': ['{name} = <pkg>.ios.api:install'],
+                            #'enaml_native_ios_factories': ['{name} = <pkg>.to.ios.factories:install'],
+                        }},
                     )
                     """.format(name=args.name, user=getpass.getuser())).lstrip())
 
@@ -2112,9 +2120,11 @@ def configure_path():
         user_base = join(expanduser('~'), '.local')
 
     #: Let user configure with an ENV variable
+    #: ENAML_NATIVE_ROOT should be the path where "enaml-native packages" get installed
+    #: and must contain the enaml-native-cli folder (which contains the required cli files)
     user_defined_prefix = os.environ.get('ENAML_NATIVE_ROOT', '')
 
-    for root in [join(user_defined_prefix, 'enaml-native-cli')
+    for root in [join(user_defined_prefix, 'enaml-native-cli'),
                  join(dirname(realpath(__file__))),
                  join(sys.prefix, 'packages', 'enaml-native-cli'),  #: venv or system install
                  join(sys.prefix, 'local', 'packages', 'enaml-native-cli'),  #: system install

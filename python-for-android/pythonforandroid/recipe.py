@@ -657,8 +657,13 @@ class Recipe(with_metaclass(RecipeMeta)):
         """
         for ep in pkg_resources.iter_entry_points(group="p4a_recipe"):
             if ep.name.replace("-", "_") == name.replace("-", "_"):
-                get_recipe = ep.load()
-                return get_recipe()
+                try:
+                    get_recipe = ep.load()
+                    return get_recipe()
+                except Exception as e:
+                    #: Tell the user which one failed
+                    logger.warning("Failed to load {}: {}".format(ep.name, e))
+                    raise
 
     @classmethod
     def get_recipe(cls, name, ctx):
