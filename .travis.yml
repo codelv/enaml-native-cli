@@ -30,6 +30,9 @@ before_install:
   - which android
   #- which ndk-build
 
+  #: What encoding is travis using?
+  - echo $LANG
+
   #: Install Crystax NDK
   - mkdir ~/Android
   - mkdir ~/Android/Crystax

@@ -1,4 +1,5 @@
-#!/home/jrm/Workspace/tmp/TestApp/venv/bin/python
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import sh
 import os
 import re
