@@ -25,11 +25,10 @@ before_install:
   - sudo apt install -y build-essential ccache git zlib1g-dev python2.7 python2.7-dev python-virtualenv libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip ant ccache autoconf libtool
   - sudo apt install -y openjdk-8-jdk
 
-  - whereis adb
+  #: Log where android is
   - which adb
-  - whereis android
   - which android
-  - android list sdk --no-ui --all --extended
+  - which ndk-build
 
   #: Install Crystax NDK
   - mkdir ~/Android

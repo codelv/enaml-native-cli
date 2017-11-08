@@ -55,9 +55,16 @@ def test_crystax():
 
     #: Try to build
     with current_directory('tmp/TestCrystax/'):
+
+        #: Update the sdk/ndk paths
+        if 'TRAVIS' in os.environ:
+            with app_config('package.json') as config:
+                #config['android']['ndk'] = '~/Android/Crystax/crystax-ndk-10.3.2/'
+                config['android']['sdk'] = '/usr/local/android-sdk/'
+
         #: Now activate venv and build
         with source_activated('venv', 'enaml-native') as cmd:
-            shprint(cmd, 'build-python', _debug=True)
+            shprint(cmd, 'build-python', '-d', _debug=True)
             shprint(cmd, 'run-android', _debug=True)
 
 
@@ -70,6 +77,12 @@ def test_python2():
 
     #: Try to build
     with current_directory('tmp/TestPython2/'):
+
+        #: Update the sdk/ndk paths
+        if 'TRAVIS' in os.environ:
+            with app_config('package.json') as config:
+                config['android']['ndk'] = '/usr/local/android-sdk/ndk-bundle/'
+                config['android']['sdk'] = '/usr/local/android-sdk/'
 
         #: Now activate venv and build
         with source_activated('venv', 'enaml-native') as cmd:
@@ -89,7 +102,7 @@ def test_python2():
                 #: Ctx manager saves it
 
             #: Now build
-            shprint(cmd, 'build-python', _debug=True)
+            shprint(cmd, 'build-python', '-d', _debug=True)
 
             #: And run
             shprint(cmd, 'run-android', _debug=True)
