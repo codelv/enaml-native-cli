@@ -1,6 +1,7 @@
 sudo: required
 dist: trusty
 language: android
+jdk: oraclejdk8
 android:
   components:
     - tools
@@ -24,7 +25,11 @@ before_install:
   - sudo apt install -y build-essential ccache git zlib1g-dev python2.7 python2.7-dev python-virtualenv libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip ant ccache autoconf libtool
   - sudo apt install -y openjdk-8-jdk
 
-  - whereis ndk-build
+  - whereis adb
+  - which adb
+  - whereis android
+  - which android
+  - android list sdk --no-ui --all --extended
 
   #: Install Crystax NDK
   - mkdir ~/Android
