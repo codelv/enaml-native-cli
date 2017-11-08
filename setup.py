@@ -57,7 +57,7 @@ setup(
     data_files=find_data_files('enaml-native-cli', 'android', 'ios',
                                'python-for-android', 'python-for-ios'),
     install_requires=[
-        'appdirs', 'colorama>=0.3.3', 'sh>=1.10,<1.12.5', 'jinja2', 'six', 'pipdeptree',
+        'appdirs', 'colorama>=0.3.3', 'sh==1.12.4', 'jinja2', 'six', 'pipdeptree',
         'atom', 'ply',
     ],
     setup_requires=['virtualenv'],
