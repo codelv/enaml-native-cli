@@ -28,7 +28,7 @@ before_install:
   #: Log where android is
   - which adb
   - which android
-  - which ndk-build
+  #- which ndk-build
 
   #: Install Crystax NDK
   - mkdir ~/Android
