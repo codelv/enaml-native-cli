@@ -105,7 +105,7 @@ def test_python2():
             shprint(cmd, 'build-python', _debug=True)
 
             #: And run
-            shprint(cmd, 'run-android', _debug=True)
+            # TODO: shprint(cmd, 'run-android', _debug=True)
 
 
 def test_init_package():
