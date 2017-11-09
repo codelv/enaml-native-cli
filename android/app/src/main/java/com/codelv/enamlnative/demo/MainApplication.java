@@ -5,7 +5,6 @@ import android.app.Application;
 import com.codelv.enamlnative.EnamlApplication;
 import com.codelv.enamlnative.EnamlPackage;
 import com.codelv.enamlnative.packages.BridgePackage;
-import com.codelv.enamlnative.packages.IconifyPackage;
 import com.codelv.enamlnative.packages.PythonPackage;
 
 import java.util.Arrays;
@@ -20,8 +19,7 @@ public class MainApplication extends Application implements EnamlApplication {
     public List<EnamlPackage> getPackages() {
         return Arrays.<EnamlPackage>asList(
                 new BridgePackage(),
-                new PythonPackage(),
-                new IconifyPackage()
+                new PythonPackage()
         );
     }
 
