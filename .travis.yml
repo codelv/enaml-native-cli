@@ -15,7 +15,7 @@ android:
     - android-25
 
     #: Add android image
-    - sys-img-armeabi-v7a-android-22
+    - sys-img-armeabi-v7a-android-21
     - extra-android-m2repository
 
 branches:
@@ -35,19 +35,14 @@ before_install:
   #- which ndk-build
 
   # Start the emulator!
-  - echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a
+  - android list target
+  - echo no | android create avd --force -n test -t android-21 --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
   - android-wait-for-emulator
 
   #: What encoding is travis using?
   - echo $LANG
   - python -c "from locale import getpreferredencoding; print(getpreferredencoding())"
-
-  #: Install Crystax NDK
-  - mkdir ~/Android
-  - mkdir ~/Android/Crystax
-  - wget https://www.crystax.net/download/crystax-ndk-10.3.2-linux-x86_64.tar.xz
-  - tar xf crystax-ndk-10.3.2-linux-x86_64.tar.xz -C ~/Android/Crystax
 
   # Create python virtualenv
   - virtualenv ~/venv
@@ -66,6 +61,12 @@ before_install:
 
   # Install codecov report tools
   - pip install codecov
+
+  #: Install Crystax NDK (last because it takes forever)
+  - mkdir ~/Android
+  - mkdir ~/Android/Crystax
+  - wget https://www.crystax.net/download/crystax-ndk-10.3.2-linux-x86_64.tar.xz
+  - tar xf crystax-ndk-10.3.2-linux-x86_64.tar.xz -C ~/Android/Crystax
 
 install:
 
