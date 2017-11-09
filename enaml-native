@@ -935,7 +935,7 @@ class InitPackage(Command):
                     description="{name} package for enaml-native",
                     long_description=open("README.md").read(),
                     data_files=find_data_files("{name}", ['android', 'ios', 'src']),
-                    install_requires=['enaml-native-cli'],
+                    install_requires=['enaml-native'],
                     entry_points={{
                         #: Add any other recipes here
                         'p4a_recipe': [

@@ -15,7 +15,7 @@ android:
     - android-25
 
     #: Add android image
-    - sys-img-armeabi-v7a-android-25
+    - sys-img-armeabi-v7a-android-22
     - extra-android-m2repository
 
 branches:
@@ -35,7 +35,7 @@ before_install:
   #- which ndk-build
 
   # Start the emulator!
-  - echo no | android create avd --force -n test -t android-25 --abi armeabi-v7a
+  - echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
   - android-wait-for-emulator
 
