@@ -64,7 +64,7 @@ def test_crystax():
 
         #: Now activate venv and build
         with source_activated('venv', 'enaml-native') as cmd:
-            shprint(cmd, 'build-python', '-d', _debug=True)
+            shprint(cmd, 'build-python', _debug=True)
             shprint(cmd, 'run-android', _debug=True)
 
 
@@ -102,7 +102,7 @@ def test_python2():
                 #: Ctx manager saves it
 
             #: Now build
-            shprint(cmd, 'build-python', '-d', _debug=True)
+            shprint(cmd, 'build-python', _debug=True)
 
             #: And run
             shprint(cmd, 'run-android', _debug=True)

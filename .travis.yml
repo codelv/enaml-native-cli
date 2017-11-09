@@ -65,8 +65,16 @@ install:
   - python setup.py develop
   - cd ~
 
+before_script:
+  # Start the emulator!
+  - echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a
+  - emulator -avd test -no-audio -no-window &
+  - android-wait-for-emulator
+  - adb shell input keyevent 82 &
+
 script:
-  # Run the enaml test suite
+
+  # Run the enaml-native test suite
   - cd $TRAVIS_BUILD_DIR
   - py.test tests --cov-report xml -v
 
