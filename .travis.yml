@@ -32,6 +32,7 @@ before_install:
 
   #: What encoding is travis using?
   - echo $LANG
+  - python -c "from locale import getpreferredencoding; print(getpreferredencoding())"
 
   #: Install Crystax NDK
   - mkdir ~/Android
