@@ -68,44 +68,44 @@ def test_crystax():
             shprint(cmd, 'run-android', _debug=True)
 
 
-def test_python2():
-    if os.path.exists('tmp/TestPython2'):
-        sh.rm('-R', 'tmp/TestPython2')
-    cmd = sh.Command('enaml-native')
-    shprint(cmd, 'init', 'TestPython2', 'com.codelv.testpython2', 'tmp/',
-            '--dev-cli', '.', _debug=True)
-
-    #: Try to build
-    with current_directory('tmp/TestPython2/'):
-
-        #: Update the sdk/ndk paths
-        if 'TRAVIS' in os.environ:
-            with app_config('package.json') as config:
-                config['android']['ndk'] = '/usr/local/android-sdk/ndk-bundle/'
-                config['android']['sdk'] = '/usr/local/android-sdk/'
-
-        #: Now activate venv and build
-        with source_activated('venv', 'enaml-native') as cmd:
-            #: Install p4a-python2
-            shprint(cmd, 'install', 'p4a-python2==2.7.13r4', _debug=True)
-
-            #: Update package to use python2 instead of python2crystax
-            with app_config('package.json') as config:
-
-                #: Update NDK
-                config['android']['ndk'] = os.path.join(config['android']['sdk'], 'ndk-bundle')
-
-                #: Remove crystax and add python2
-                del config['android']['dependencies']['python2crystax']
-                config['android']['dependencies']['python2'] = ""  # It uses the recipe version
-
-                #: Ctx manager saves it
-
-            #: Now build
-            shprint(cmd, 'build-python', _debug=True)
-
-            #: And run
-            # TODO: shprint(cmd, 'run-android', _debug=True)
+# def test_python2():
+#     if os.path.exists('tmp/TestPython2'):
+#         sh.rm('-R', 'tmp/TestPython2')
+#     cmd = sh.Command('enaml-native')
+#     shprint(cmd, 'init', 'TestPython2', 'com.codelv.testpython2', 'tmp/',
+#             '--dev-cli', '.', _debug=True)
+#
+#     #: Try to build
+#     with current_directory('tmp/TestPython2/'):
+#
+#         #: Update the sdk/ndk paths
+#         if 'TRAVIS' in os.environ:
+#             with app_config('package.json') as config:
+#                 config['android']['ndk'] = '/usr/local/android-sdk/ndk-bundle/'
+#                 config['android']['sdk'] = '/usr/local/android-sdk/'
+#
+#         #: Now activate venv and build
+#         with source_activated('venv', 'enaml-native') as cmd:
+#             #: Install p4a-python2
+#             shprint(cmd, 'install', 'p4a-python2==2.7.13r4', _debug=True)
+#
+#             #: Update package to use python2 instead of python2crystax
+#             with app_config('package.json') as config:
+#
+#                 #: Update NDK
+#                 config['android']['ndk'] = os.path.join(config['android']['sdk'], 'ndk-bundle')
+#
+#                 #: Remove crystax and add python2
+#                 del config['android']['dependencies']['python2crystax']
+#                 config['android']['dependencies']['python2'] = ""  # It uses the recipe version
+#
+#                 #: Ctx manager saves it
+#
+#             #: Now build
+#             shprint(cmd, 'build-python', _debug=True)
+#
+#             #: And run
+#             # TODO: shprint(cmd, 'run-android', _debug=True)
 
 
 def test_init_package():
