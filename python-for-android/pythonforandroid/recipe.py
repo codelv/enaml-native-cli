@@ -1157,7 +1157,24 @@ class CythonRecipe(PythonRecipe):
         info('Running cython where appropriate')
         for root, dirnames, filenames in walk("."):
             for filename in fnmatch.filter(filenames, "*.pyx"):
+                #: Add --cplus if wneeded
+                cplus_exists = '--cplus' in self.cython_args
+                if not cplus_exists:
+                    if self.is_cpp_cython_file(join(root, filename)):
+                        self.cython_args += ['--cplus']
+
                 self.cythonize_file(env, build_dir, join(root, filename))
+
+                #: Remove --cplus if wew added it
+                if not cplus_exists and '--cplus' in self.cython_args:
+                    self.cython_args.remove('--cplus')
+
+    def is_cpp_cython_file(self, path):
+        # distutils: language = c++
+        with open(path) as f:
+            if "distutils: language = c++" in f.read():
+                return True
+        return False
 
     def get_recipe_env(self, arch, with_flags_in_cc=True):
         env = super(CythonRecipe, self).get_recipe_env(arch, with_flags_in_cc)

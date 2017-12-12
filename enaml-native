@@ -285,11 +285,13 @@ class CleanPython(Command):
     help = set_default("Remove python-for-android build and .so libs")
     args = set_default([
         ('-a', dict(action='store_true', help="Clean all")),
+        ('--keep-python', dict(action='store_true', help="Keep the python build")),
         ('--ios', dict(action='store_true', help="Clean iOS only")),
         ('--android', dict(action='store_true', help="Clean android only")),
     ])
 
-    def run(self, args=None):
+    def run(self, args=None, keep_python=None):
+        #: Get any kwargs from other commands
         ctx = self.ctx
 
         if args is None or not args.ios:
@@ -301,7 +303,14 @@ class CleanPython(Command):
                     #    shprint(sh.rm, '-R', 'android/app/src/main/libs/{}/'.format(arch))
                 else:
                     shprint(sh.python, 'p4a.py', 'clean_dists')
-                    shprint(sh.python, 'p4a.py', 'clean_builds')
+                    if keep_python or (args and args.keep_python):
+                        #: Remove everything except for hostpython2 and python2
+                        p = expanduser("~/.local/share/python-for-android/build/other_builds/*")
+                        for recipe in glob(p):
+                            if recipe.split("/")[-1] not in ['hostpython2', 'python2']:
+                                shprint(sh.rm, '-Rf', recipe)
+                    else:
+                        shprint(sh.python, 'p4a.py', 'clean_builds')
         if (args is None or not args.android) and sys.platform=='darwin':
             if args and args.a: #: Only for clean all, building takes FOREVER
                 with cd(ctx['ios']['p4i']):
@@ -478,6 +487,7 @@ class BuildPython(Command):
         ('--minify', dict(action='store_true', help="Minify")),
         ('--release', dict(action='store_true', help="Build for release")),
         ('--skip-ndk-build', dict(action='store_true', help="Skip ndk-build (for travis)")),
+        ('--clean-python-build', dict(action='store_true', help="Don't keep the python build")),
     ])
 
     def run(self, args=None):
@@ -534,9 +544,8 @@ class BuildPython(Command):
                 logger.level = logging.DEBUG
 
             with cd(ctx['android']['p4a']):
-                #: Um, we're passing args from another command?
                 #: Clean whatever build from previous arch
-                self.cmds['clean-python'].run()
+                self.cmds['clean-python'].run(keep_python=not args.clean_python_build)
 
                 shprint(sh.python, *'p4a.py create --arch={arch} '
                                     '--private=../src '
@@ -550,7 +559,6 @@ class BuildPython(Command):
                                     '--sdk-dir={sdk} '
                                     '--ndk-dir={ndk} '
                                     '--ndk-platform=21 '
-                                    '--ndk-version=15 ' # 
                                     '--ndk-build-dir={ndk_build_dir} '
                                     '{ndk_version}'
                                     '{debug}'
