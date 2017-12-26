@@ -325,19 +325,20 @@ class CleanPython(Command):
                     #           rc/main/libs/{}/'.format(arch))
                 else:
                     shprint(sh.python, 'p4a.py', 'clean_dists')
-                    if keep_python or (args and args.keep_python):
-                        #: Remove everything except for hostpython2 and python2
-                        p = expanduser("~/.local/share/python-for-android/"
-                                       "build/other_builds/*")
-                        for recipe in glob(p):
-                            if recipe.split("/")[-1] not in ['hostpython2',
-                                                             'python2']:
-                                shprint(sh.rm, '-Rf', recipe)
-
-                    else:
-                        shprint(sh.python, 'p4a.py', 'clean_builds')
+                    #: Does not work
+                    # if keep_python or (args and args.keep_python):
+                    #     #: Remove everything except for hostpython2 and python2
+                    #     p = expanduser("~/.local/share/python-for-android/"
+                    #                    "build/other_builds/*")
+                    #     for recipe in glob(p):
+                    #         if recipe.split("/")[-1] not in ['hostpython2',
+                    #                                          'python2']:
+                    #             shprint(sh.rm, '-Rf', recipe)
+                    #
+                    # else:
+                    shprint(sh.python, 'p4a.py', 'clean_builds')
         if (args is None or not args.android) and sys.platform == 'darwin':
-            if args and args.a: #: Only for clean all, building takes FOREVER
+            if args and args.a:  #: Only for clean all, building takes FOREVER
                 with cd(ctx['ios']['p4i']):
                     recipes = []
                     for line in sh.python('toolchain.py',
