@@ -46,7 +46,7 @@ def find_data_files(dest, *folders):
 
 setup(
     name="enaml-native-cli",
-    version="1.4.0",
+    version="1.4.1",
     author="CodeLV",
     author_email="frmdstryr@gmail.com",
     license='MIT',
@@ -57,9 +57,10 @@ setup(
     data_files=find_data_files('enaml-native-cli', 'android', 'ios',
                                'python-for-android', 'python-for-ios'),
     install_requires=[
-        'appdirs', 'colorama>=0.3.3', 'sh==1.12.4', 'jinja2', 'six', 'pipdeptree',
-        'atom', 'ply',
+        'appdirs', 'colorama>=0.3.3', 'sh==1.12.4', 'jinja2', 'six',
+        'pipdeptree', 'atom', 'ply',
     ],
     setup_requires=['virtualenv'],
-    test_requires=['requests', 'py.test', 'pytest-cov', 'pytest-catchlog', 'pytest-timeout']
+    test_requires=['requests', 'py.test', 'pytest-cov', 'pytest-catchlog',
+                   'pytest-timeout']
 )

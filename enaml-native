@@ -1965,8 +1965,13 @@ class Server(Command):
         #: Save setting
         self.remote_debugging = args and args.remote_debugging
 
-        #: Setup observer
-        if not self.remote_debugging:
+        if self.remote_debugging:
+            #: Do reverse forwarding so you can use remote-debugging over
+            #: adb (via USB even if Wifi is not accessible)
+            shprint(sh.adb, 'reverse',
+                    'tcp:{}'.format(self.port), 'tcp:{}'.format(self.port))
+        else:
+            #: Setup observer
             try:
                 from watchdog.observers import Observer
                 from watchdog.events import LoggingEventHandler
