@@ -225,19 +225,20 @@ class Init(Command):
                         #: Called to start your app 
                         from enamlnative.android.app import AndroidApplication
                         app = AndroidApplication(
-                            debug=True,  #: Uncomment to debug the bridge
-                            dev='server', #: Uncomment to enable reloading
+                            debug=False,  #: Uncomment to debug the bridge
+                            dev='', #: Set to 'server', 'remote', an IP address 
                             load_view=load_view
                         )
                         app.start()
                         
                     
-                    def load_view(app, should_reload=True):
+                    def load_view(app):
                         #: Create and show the enaml view
                         import enaml
                         with enaml.imports():
                             import view
-                            if should_reload:
+                            if app.view:
+                                #: The view was already set so reload
                                 reload(view)
                             app.view = view.ContentView()
                         app.show_view()
