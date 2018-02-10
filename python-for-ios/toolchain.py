@@ -19,7 +19,6 @@ import json
 import shutil
 import fnmatch
 import glob
-import virtualenv
 import plistlib
 from contextlib import contextmanager
 from datetime import datetime
