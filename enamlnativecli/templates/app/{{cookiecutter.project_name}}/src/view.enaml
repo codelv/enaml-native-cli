@@ -1,0 +1,7 @@
+from enamlnative.core.api import *
+from enamlnative.widgets.api import *
+
+enamldef ContentView(Flexbox):
+    flex_direction = "column"
+    TextView:
+        text = "{{cookiecutter.app_name}}"

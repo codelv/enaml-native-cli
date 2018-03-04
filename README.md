@@ -2,8 +2,8 @@
 
 [![Build Status](https://travis-ci.org/codelv/enaml-native-cli.svg?branch=master)](https://travis-ci.org/codelv/enaml-native-cli)
 
-Cli for [enaml-native](https://github.com/codelv/enaml-native). This is for the new build system
-which allows more modular app builds.
+Cli for [enaml-native](https://github.com/codelv/enaml-native). This is for the new build 
+system which allows more modular app builds.
  
 This is used to:
  
@@ -11,8 +11,11 @@ This is used to:
  2. install and remove app packages and dependencies
  3. build and run your apps 
 
-Includes customized versions of python-for-android and python-for-ios (kivy-ios).
-
+Now uses [conda-mobile](https://github.com/codelv/conda-mobile) for managing app 
+dependencies and works same for iOS and Android. Android apps can also be built 
+on windows!
+ 
+ 
 ### Installation
 
 Install via pip using the `--user` flag. 
@@ -32,24 +35,25 @@ Start a new enaml-native project:`
 
 ```bash 
 
-enaml-native init <AppName> <bundle.id> <dest/folder>
+enaml-native create app <AppName>
 
 ```
 
-for example
+It will prompt you for different configuration variables. Most can be left
+as is but at a minimum the `app_name` and `bundle_id` should be changed.
 
-```bash
-
-#: Note: the apps/ folder must exist!
-enaml-native init HelloWorld com.example.helloworld apps/
-
-```
-
-Once done, cd to the app folder and activate the app's virtual environment.
+Once done, cd to the app folder (the project name) and activate the app's 
+environment.
 
 ```bash 
-cd apps/HelloWorld
-source venv/bin/activate
+cd HelloWorld
+
+# on OSX / linux
+source activate ./venv
+
+# on windows simply do
+activty venv
+
 ```
 
 Now install any app requirements (or use `pip install` and `enaml-native link`)
