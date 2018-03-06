@@ -1,7 +1,7 @@
 """
 Copyright (c) 2017, Jairus Martin.
 
-Distributed under the terms of the MIT License.
+Distributed under the terms of the GPLv3 License.
 
 The full license is in the file COPYING.txt, distributed with this software.
 
@@ -25,7 +25,7 @@ setup(
     version="2.0.0",
     author="CodeLV",
     author_email="frmdstryr@gmail.com",
-    license='MIT',
+    license='GPLv3',
     url='https://github.com/codelv/enaml-native-cli/',
     description="Build native mobile apps in python",
     entry_points={'console_scripts': [
