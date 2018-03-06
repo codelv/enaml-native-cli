@@ -1,0 +1,6 @@
+include ':app'
+
+include ':enaml-native'
+project(':enaml-native').projectDir = new File(rootProject.projectDir, '../venv/android/enaml-native')
+
+

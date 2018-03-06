@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">{{cookiecutter.color_primary}}</color>
+    <color name="colorPrimaryDark">{{cookiecutter.color_primary_dark}}</color>
+    <color name="colorAccent">{{cookiecutter.color_accent}}</color>
+</resources>

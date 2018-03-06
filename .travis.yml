@@ -12,7 +12,7 @@ android:
     - build-tools-26.0.2
 
     # The SDK version used to compile your project
-    - android-25
+    - android-27
 
     #: Add android image
     - android-22 # Android platform used by your alternative emulator
@@ -25,54 +25,22 @@ branches:
     - master
 
 before_install:
-  #: Setup Android SDK
-  - sudo dpkg --add-architecture i386
-  - sudo apt update
-  - sudo apt install -y build-essential ccache git zlib1g-dev python2.7 python2.7-dev python-virtualenv libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip ant ccache autoconf libtool
-  - sudo apt install -y openjdk-8-jdk
-
-  #: Log where android is
-  - which adb
-  - which android
-  #- which ndk-build
-
-  # Start the emulator!
-  - android list target
-  - echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a
-  - emulator -avd test -no-audio -no-window &
-  - android-wait-for-emulator
-
-  #: What encoding is travis using?
-  - echo $LANG
-  - python -c "from locale import getpreferredencoding; print(getpreferredencoding())"
-
-  # Create python virtualenv
-  - virtualenv ~/venv
-  - source ~/venv/bin/activate
-  - python --version
-  - pip --version
-
-  #: Install cython
-  - pip install Cython --install-option="--no-cython-compile"
-
-  # Install cli dependencies
-  - pip install sh colorama appdirs six jinja2 pipdeptree atom ply
-
-  # Intall test tools
-  - pip install pytest pytest-cov pytest-catchlog pytest-timeout
-
-  # Install codecov report tools
-  - pip install codecov
-
-  #: Install Crystax NDK (last because it takes forever)
-  - mkdir ~/Android
-  - mkdir ~/Android/Crystax
-  - wget https://www.crystax.net/download/crystax-ndk-10.3.2-linux-x86_64.tar.xz
-  - tar xf crystax-ndk-10.3.2-linux-x86_64.tar.xz -C ~/Android/Crystax
+  # Install miniconda
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+       wget http://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+     else
+       wget https://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
 
 install:
 
-  # Install enamlnative (check that build script is not broken
+  # Install enaml-native-cli (check that build script is not broken)
   - cd $TRAVIS_BUILD_DIR
   - python setup.py develop
   - cd ~
@@ -80,10 +48,13 @@ install:
 
 script:
 
-  # Run the enaml-native test suite
+  # Create and run an app
   - cd $TRAVIS_BUILD_DIR
-  - py.test tests --cov-report xml -v
 
-after_success:
-  - cd $TRAVIS_BUILD_DIR
-  - codecov
+  # Create HelloWorld app and run it
+  - mkdir tmp
+  - cd tmp
+  - enaml-native create app --no-input
+  - cd HelloWorld
+  - source activate ./venv
+  - enaml-native run-android

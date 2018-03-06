@@ -1,0 +1,62 @@
+name: {{cookiecutter.project_name.lower()}}
+bundle_id: {{cookiecutter.bundle_id}}
+
+# Channels to look for any specific libraries
+channels:
+  - codelv
+
+# App dependencies to be installed
+dependencies:
+  - enaml-native
+
+# Exclude unused packages and libs using glob patterns
+# only the ones required by enaml-native are left in
+# if you need to use a module (ex json) then remove
+# lib._json.so from this list. You can also add specific
+# exclusions under ios and android.
+excluded:
+  # Packages
+  - idlelib
+  - ensurepip
+  - distutils
+  - lib2to3
+  - pydoc_data
+  - site-packages/enaml/qt
+  - site-packages/enaml/workbench
+  - site-packages/enaml/*lib
+  - site-packages/enaml/scint*
+
+  - lib._cod*
+  - lib._csv.so
+  - lib._ctypes.so
+  - lib.cPickle.so
+  - lib._element*
+  - lib.cmath.so
+  - lib.termios.so
+  - lib._md5.so
+  - lib._multi*
+  - lib.mmap*
+  - lib._hotshot.so
+  - lib._sha*.so
+  - lib._json.so
+  - lib._ssl.so
+  - lib._sqlite3.so
+  - lib.pyexpat.so
+  - lib.strop.so
+  - lib.syslog.so
+  - lib.enaml.*ext.so
+
+# Android specific configuration
+android:
+  ndk: {{cookiecutter.android_ndk}}
+  targets:
+    - x86_64
+    - x86
+    - arm
+    - arm64
+
+# iOS specific configuration
+ios:
+  targets:
+    - iphoneos
+    - iphonesimulator
