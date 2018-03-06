@@ -54,7 +54,7 @@ script:
   # Create HelloWorld app and run it
   - mkdir tmp
   - cd tmp
-  - enaml-native create app --noinput
+  - enaml-native create app --no-input
   - cd HelloWorld
   - source activate ./venv
   - enaml-native run-android
