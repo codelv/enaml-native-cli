@@ -26,14 +26,13 @@ before_install:
   - echo yes | tools/bin/sdkmanager "build-tools;27.0.3" > output.log
   - echo yes | tools/bin/sdkmanager "extras;google;m2repository" > output.log
   - echo yes | tools/bin/sdkmanager "extras;android;m2repository" > output.log
+  - echo yes | tools/bin/sdkmanager "system-images;android-27;google_apis;x86" > output.log
   - echo yes | tools/bin/sdkmanager "ndk-bundle" > output.log
   - echo yes | tools/bin/sdkmanager --licenses > output.log
 
-  - find . | grep make_standalone_toolchain
-
   # Start the emulator!
   - tools/bin/avdmanager list
-  - echo no | tools/bin/avdmanager create avd --force --name test --package 'android-27'
+  - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-27;google_apis;x86'
   - tools/emulator -avd test -no-audio -no-window &
   - platform-tools/adb wait-for-device
   - cd $TRAVIS_BUILD_DIR
