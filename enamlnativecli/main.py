@@ -492,19 +492,18 @@ class BundleAssets(Command):
                     shprint(sh.rm, 'python.tar.lz4')
 
                 #: Zip everything and copy to assets arch to build
-                with cd('build'):
+                print(Colors.CYAN+"[DEBUG] Creating python bundle..."+ \
+                      Colors.RESET)
+                with tarfile.open(bundle, "w:gz") as tar:
+                    tar.add('python', arcname=os.path.basename('python'))
+
+                #with cd('build'):
                     #shprint(sh.zip, '-r',
                     # 'android/app/src/main/assets/python/python.zip', '.')
                     #shprint(sh.zip, '-r', '../python.zip', '.')
-
+                    #shprint(sh.tar, '-zcvf', '../python.tar.gz', '.')
                     #shprint(sh.bash, '-c',
                     # 'tar czf - build | lz4 -9 - python.tar.lz4')
-                    print(Colors.CYAN+"[DEBUG] Creating python bundle..."+\
-                          Colors.RESET)
-                    with tarfile.open(bundle, "w:gz") as tar:
-                        tar.add('.', arcname=os.path.basename('.'))
-                    #shprint(sh.tar, '-zcvf', '../python.tar.gz', '.')
-
                     # import msgpack
                     # import lz4
                     # import lz4.frame
@@ -548,10 +547,8 @@ class BundleAssets(Command):
         # if not exists('android/app/src/main/assets/python/'):
         #     os.makedirs('android/app/src/main/assets/python/')
         #
-        shprint(sh.cp,
-                '{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
-                'android/app/src/main/assets/python/{bundle}'.format(
-                    bundle=bundle))
+        cp('{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
+           'android/app/src/main/assets/python/{bundle}'.format(bundle=bundle))
 
         #: And wth, just copy it to the ios folder too :)
         # shprint(sh.cp,
