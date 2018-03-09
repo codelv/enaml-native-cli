@@ -36,6 +36,7 @@ before_install:
   - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-25;google_apis;armeabi-v7a'
   - tools/emulator -avd test -no-audio -no-window &
   #- platform-tools/adb wait-for-device
+  - export PATH="$ANDROID_HOME/platform-tools:$PATH"
   - cd $TRAVIS_BUILD_DIR
 
   # Install miniconda
