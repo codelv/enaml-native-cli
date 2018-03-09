@@ -33,6 +33,7 @@ before_install:
   # Start the emulator!
   - tools/bin/avdmanager list
   - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-27;google_apis;x86'
+  - ln -s tools/emulator64-x86 tools/emulator-x86
   - tools/emulator -avd test -no-audio -no-window &
   - platform-tools/adb wait-for-device
   - cd $TRAVIS_BUILD_DIR
