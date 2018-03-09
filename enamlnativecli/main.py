@@ -14,15 +14,12 @@ Created on July 10, 2017
 import sh
 import os
 import re
-import io
 import sys
-import yaml
 import shutil
+import tarfile
 import fnmatch
-import logging
-import getpass
-import textwrap
 import compileall
+from ruamel import yaml
 import pkg_resources
 from glob import glob
 from os.path import join, exists, abspath, expanduser, realpath, dirname
@@ -30,8 +27,8 @@ from argparse import ArgumentParser, Namespace, REMAINDER
 from atom.api import (Atom, Bool, Callable, Dict, List, Unicode, Float, Int,
                       Instance, set_default)
 from contextlib import contextmanager
-from collections import OrderedDict
 from cookiecutter.main import cookiecutter
+from distutils.dir_util import copy_tree
 
 try:
     from ConfigParser import ConfigParser
@@ -40,12 +37,12 @@ except:
 
 
 class Colors:
-    RED   = "\033[1;31m"
-    BLUE  = "\033[1;34m"
-    CYAN  = "\033[1;36m"
+    RED = "\033[1;31m"
+    BLUE = "\033[1;34m"
+    CYAN = "\033[1;36m"
     GREEN = "\033[0;32m"
     RESET = "\033[0;0m"
-    BOLD    = "\033[;1m"
+    BOLD = "\033[;1m"
     REVERSE = "\033[;7m"
 
 
@@ -61,11 +58,16 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
+def cp(src, dst):
+    """ Like cp -R src dst """
+    print("[DEBUG]:   -> copying {} to {}".format(src, dst))
+    copy_tree(src, dst)
+
+
 def shprint(cmd, *args, **kwargs):
     debug = kwargs.pop('_debug', True)
 
     write, flush = sys.stdout.write, sys.stdout.flush
-    sub = re.sub
     kwargs.update({
         '_err_to_out': True,
         '_out_bufsize': 0,
@@ -159,6 +161,151 @@ class Create(Command):
         cookiecutter(template,
                      no_input=args.no_input,
                      overwrite_if_exists=args.overwrite_if_exists)
+        print(Colors.GREEN+"[INFO] {} created successfully!".format(
+              args.what.title())+Colors.RESET)
+
+
+class BuildRecipe(Command):
+    title = set_default('build-recipe')
+    help = set_default("Alias to conda build")
+    args = set_default([
+        ('package', dict(help='Conda recipe to build')),
+        ('args', dict(nargs=REMAINDER, help="args to pass to conda build")),
+    ])
+
+    #: Can be run from anywhere
+    app_dir_required = set_default(False)
+
+    def run(self, args):
+        env = os.environ.copy()
+        if args.package.startswith('pip-'):
+            env.update({'CC': '/bin/false', 'CXX':'/bin/false'})
+        shprint(self.cli.conda, 'build', args.package, *args.args, _env=env)
+        print(Colors.GREEN+"[INFO] Built {} successfully!".format(
+              args.package)+Colors.RESET)
+
+
+class MakePipRecipe(Command):
+    title = set_default('make-pip-recipe')
+    help = set_default("Creates a universal Android and iOS recipe "
+                       "for a given pip package")
+    args = set_default([
+        ('package', dict(help='pip package to build a recipe for')),
+        ('--recursive', dict(action='store_true',
+                             help="recursively create for all dependencies")),
+        ('--force', dict(action='store_true',
+                             help="force recreation if it already exists")),
+        ('--croot', dict(nargs="?", help="conda root for building recipes")),
+    ])
+
+    #: Can be run from anywhere
+    app_dir_required = set_default(False)
+    
+    #: Recipes built
+    _built = List()
+
+    def run(self, args):
+        self.build(args.package, args)
+        print(Colors.GREEN+"[INFO] Made successfully!"+Colors.RESET)
+
+    def build(self, package, args):
+        ctx = self.ctx
+        old = set(os.listdir('.'))
+
+        # Run conda skeleton
+        shprint(self.cli.conda, 'skeleton', 'pypi', package)
+
+        new = set(os.listdir('.')).difference(old)
+        self._built.append(package)
+        for recipe in new:
+            dst = 'pip-{}'.format(recipe)
+            # Rename to add pip-prefix so it doesn't
+            # conflict with regular recipes
+            if args.force and exists(dst):
+                shutil.rmtree(dst)
+            shutil.move(recipe, dst)
+
+            #template = join(dirname(__file__), 'templates', 'recipe')
+            #cookiecutter(template, no_input=True,
+            #             extra_context={'name': package, 'recipe': dst})
+
+            # Copy the recipe
+            #shutil.copy(join(recipe, 'meta.yaml'), join(dst, 'meta.yaml'))
+            #shutil.rmtree(recipe)
+
+            # Read the generated recipe
+            with open(join(dst, 'meta.yaml')) as f:
+                # Strip off the jinja tags (and add them in at the end)
+                data = f.read().split("\n")
+                var_lines = len([l for l in data if l.startswith("{%")])
+                # Skip version, name, etc..
+                meta = yaml.load("\n".join(data[var_lines:]),
+                                 Loader=yaml.RoundTripLoader)
+
+            # Update name
+            meta['package']['name'] = 'pip-'+meta['package']['name']
+
+            # Remove description it can cause issues
+            #meta['about']['description'] = "See pypi"
+
+            # Update the script to install for every arch
+            script = meta['build'].pop('script', '')
+            meta['build']['script_env'] = ['CC', 'CXX']
+            meta['build']['noarch'] = True
+            meta['build']['script'] = [
+                '{script} --no-compile '
+                '--install-base=$PREFIX/{prefix} '
+                '--install-lib=$PREFIX/{prefix}/python/site-packages '
+                '--install-scripts=$PREFIX/{prefix}/scripts '
+                '--install-data=$PREFIX/{prefix}/data '
+                '--install-headers=$PREFIX/{prefix}/include'.format(
+                    script=script.strip(), prefix=p, **ctx) for p in [
+                    'android/arm', 'android/arm64', 'android/x86',
+                    'android/x86_64', 'iphoneos', 'iphonesimulator'
+                ]
+            ]
+
+            # Prefix all dependencies with 'pip-'
+            requires = []
+            excluded = ['python', 'cython', 'setuptools']
+            for stage in meta['requirements'].keys():
+                reqs = meta['requirements'].pop(stage, [])
+                requires.extend(reqs)
+                r = ['pip-{}'.format(r) for r in reqs if r not in excluded]
+                if r:
+                    meta['requirements'][stage] = r
+
+            # Build all requirements
+            if args.recursive:
+                requires = list(set(requires))
+                for pkg in requires:
+                    # Strip off any version
+                    pkg = re.split("[<>=]", pkg)[0].strip()
+                    if pkg in excluded or pkg in self._built:
+                        continue  # Not needed or already done
+                    if args.force or not exists('pip-{}'.format(pkg)):
+                        self.build(pkg, args)
+
+            # Remove tests we're cross compiling
+            meta.pop('test', None)
+
+            # Save it
+            with open(join(dst, 'meta.yaml'), 'w') as f:
+                f.write("\n".join(data[:var_lines])+"\n")
+                f.write(yaml.dump(meta, Dumper=yaml.RoundTripDumper,
+                                  width=1000))
+
+            # Now build it
+            build_args = ['--croot={}'.format(args.croot)
+                          ] if args.croot else []
+
+            # Want to force a failure on any compiling
+            env = os.environ.copy()
+            env.update({'CC': '/bin/false', 'CXX':'/bin/false'})
+
+            shprint(self.cli.conda, 'build', dst, *build_args, _env=env)
+            print(Colors.GREEN+"[INFO] Built {} successfully!".format(
+                  dst)+Colors.RESET)
 
 
 class NdkBuild(Command):
@@ -294,7 +441,7 @@ class BundleAssets(Command):
             with cd(env['python_build_dir']):
                 #: Remove old build
                 if os.path.exists('build'):
-                    shprint(sh.rm, '-R', 'build')
+                    shutil.rmtree('build')
 
                 if args and args.p:
                     #: Restart as root
@@ -306,34 +453,35 @@ class BundleAssets(Command):
                                 **cfg),
                             'build')
                 else:
-                    #: Extract stdlib.zip to build/
-                    shprint(sh.mkdir, 'build')
-
-                    #with cd('build'):
-                    #    shprint(sh.unzip,
-                    #            '{ndk}/sources/python/2.7/libs/{arch}/
-                    #               stdlib.zip'.format(**cfg),
-                    #            '-d', 'stdlib')
                     #: Copy python/ build/
-                    with cd('{conda_prefix}/android/{arch}/'
-                            'python/'.format(**cfg)):
-                        shprint(sh.cp, '-R', '.',
-                                '{python_build_dir}/build'.format(**cfg))
+                    cp(
+                        '{conda_prefix}/android/{arch}/python/'.format(**cfg),
+                        '{python_build_dir}/build'.format(**cfg))
+                        #shprint(sh.cp, '-R', '.',
+                        #        '{python_build_dir}/build'.format(**cfg))
 
                     #: Copy sources from app source
                     for src in ctx.get('sources', ['src']):
-                        shprint(sh.cp, '-R', join(root, src, '.'), 'build')
+                        cp(join(root, src), 'build')
+                        # shprint(sh.cp, '-R', join(root, src, '.'), 'build')
 
                     #: Clean any excluded sources
                     with cd('build'):
                         # Compile to pyc
-                        #compileall.compile_dir('.')
+                        compileall.compile_dir('.')
+
+                        # Remove all py files
+                        for dp, dn, fn in os.walk('.'):
+                            for f in glob(join(dp, '*.py')):
+                                if exists(f+'c') or exists(f+'o'):
+                                    os.remove(f)
 
                         # Exclude all py files and any user added patterns
-                        for pattern in env.get('excluded', []):#+['*.py']:
+                        for pattern in env.get('excluded', [])+['*.dist-info']:
                             matches = glob(pattern)
-                            if matches:
-                                shprint(sh.rm, '-R', *matches)
+                            for m in matches:
+                                shutil.rmtree(m)
+                                #shprint(sh.rm, '-R', *matches)
 
                 #: Remove old
                 if os.path.exists('python.zip'):
@@ -351,9 +499,15 @@ class BundleAssets(Command):
 
                     #shprint(sh.bash, '-c',
                     # 'tar czf - build | lz4 -9 - python.tar.lz4')
-                    shprint(sh.tar, '-zcvf', '../python.tar.gz', '.')
+                    print(Colors.CYAN+"[DEBUG] Creating python bundle..."+\
+                          Colors.RESET)
+                    with tarfile.open(bundle, "w:gz") as tar:
+                        tar.add('.', arcname=os.path.basename('.'))
+                    #shprint(sh.tar, '-zcvf', '../python.tar.gz', '.')
 
                     # import msgpack
+                    # import lz4
+                    # import lz4.frame
                     # with open('../libpybundle.so', 'wb') as source:
                     #     data = {}
                     #     for root, dirs, files in os.walk("."):
@@ -366,19 +520,21 @@ class BundleAssets(Command):
                     #     for k in data.keys():
                     #         print(k)
                     #     msgpack.pack(data, source)
-                    #
                     # # Compress with lz4
-
+                    # MINHC = lz4.frame.COMPRESSIONLEVEL_MINHC
+                    # with lz4.frame.open('../libpybundle.lz4', 'wb',
+                    #                     compression_level=MINHC) as f:
+                    #     f.write(msgpack.packb(data))
 
             break  #: They should all be the same so stop after the first
 
         # Copy to each lib dir
         #for arch in env['targets']:
-        #    env['abi'] = ANDROID_TARGETS[arch]
-        #    src = '{python_build_dir}/libpybundle.so'.format(**env)
-        #    dst = '{conda_prefix}/android/enaml-native/src/main/libs/{abi}/'.format(**env)
-        #    print("Copying bundle to {}...".format(dst))
-        #    shutil.copy(src, dst)
+        #   env['abi'] = ANDROID_TARGETS[arch]
+        #   src = '{python_build_dir}/libpybundle.so'.format(**env)
+        #   dst = '{conda_prefix}/android/enaml-native/src/main/libs/{abi}/'.format(**env)
+        #   print("Copying bundle to {}...".format(dst))
+        #   shutil.copy(src, dst)
 
         #: Now copy the tar.lz4 and rename as a special ".so" file
         #: to trick android into extracting from the apk on install
