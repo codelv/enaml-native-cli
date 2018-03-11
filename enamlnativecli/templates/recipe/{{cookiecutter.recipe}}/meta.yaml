@@ -1,0 +1,27 @@
+package:
+  name: {{cookiecutter.recipe}}
+  version: {{cookiecutter.version}}
+
+source:
+  url:  {{cookiecutter.url}}
+
+requirements:
+  build:
+    - android-python
+    - ios-python # [osx]
+
+build:
+  number: 1
+  binary_relocation: False
+  script:
+    - $RECIPE_DIR/build.android.sh
+    - $RECIPE_DIR/build.ios.sh # [osx]
+
+outputs:
+  - name: android-{{cookiecutter.version}}
+
+
+
+about:
+  home: http://github.com/codelv/enaml-native
+  license: GPLv3

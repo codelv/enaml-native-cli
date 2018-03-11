@@ -1,30 +1,44 @@
 sudo: required
 dist: trusty
-language: android
-jdk: oraclejdk8
-android:
-  components:
-    - tools
-    - platform-tools
-    - tools
-
-    # The BuildTools version used by your project
-    - build-tools-26.0.2
-
-    # The SDK version used to compile your project
-    - android-27
-
-    #: Add android image
-    - android-22 # Android platform used by your alternative emulator
-    - sys-img-armeabi-v7a-android-22
-    - extra-google-m2repository
-    - extra-android-m2repository
-
+language: python
 branches:
   only:
     - master
 
 before_install:
+  - export ANDROID_HOME=$HOME/Android/Sdk/
+  - export NDK=$HOME/Android/Sdk/ndk-bundle
+
+  # Install android tools
+  - mkdir -p $ANDROID_HOME
+  - cd $ANDROID_HOME
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      wget https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip -O tools.zip;
+     else
+      wget https://dl.google.com/android/repository/sdk-tools-darwin-3859397.zip -O tools.zip;
+    fi
+  - unzip -oq tools.zip
+  - rm *.zip
+
+  # Install sdk, ndk, and build tools
+  - echo yes | tools/bin/sdkmanager --update > output.log
+  - echo yes | tools/bin/sdkmanager "platforms;android-27" > output.log
+  - echo yes | tools/bin/sdkmanager "build-tools;27.0.3" > output.log
+  - echo yes | tools/bin/sdkmanager "extras;google;m2repository" > output.log
+  - echo yes | tools/bin/sdkmanager "extras;android;m2repository" > output.log
+  - echo yes | tools/bin/sdkmanager "system-images;android-25;google_apis;armeabi-v7a" > output.log
+  - echo yes | tools/bin/sdkmanager "ndk-bundle" > output.log
+  - echo yes | tools/bin/sdkmanager --licenses > output.log
+
+  # Start the emulator!
+  - tools/bin/avdmanager list
+  - ln -s tools/emulator64-x86 tools/emulator-x86
+  - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-25;google_apis;armeabi-v7a'
+  - tools/emulator -avd test -no-audio -no-window &
+  #- platform-tools/adb wait-for-device
+  - export PATH="$ANDROID_HOME/platform-tools:$PATH"
+  - cd $TRAVIS_BUILD_DIR
+
   # Install miniconda
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
        wget http://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -37,6 +51,7 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
+
 
 install:
 
