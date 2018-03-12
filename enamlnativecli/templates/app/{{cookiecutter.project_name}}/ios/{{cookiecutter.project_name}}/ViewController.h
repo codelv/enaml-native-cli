@@ -1,9 +1,8 @@
 //
 //  ViewController.h
-//  demo
+//  {{cookiecutter.app_name}}
 //
-//  Created by jrm on 7/27/17.
-//  Copyright © 2017 frmdstryr. All rights reserved.
+//  Copyright © 2018 {{cookiecutter.author}}. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>

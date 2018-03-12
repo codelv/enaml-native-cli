@@ -1,15 +1,14 @@
 //
 //  AppDelegate.m
-//  Demo2
+//  {{cookiecutter.app_name}}
 //
-//  Created by jrm on 7/14/17.
-//  Copyright © 2017 frmdstryr. All rights reserved.
+//  Copyright © 2018 {{cookiecutter.author}}. All rights reserved.
 //
 
 #import "AppDelegate.h"
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#include <Python/Python.h>
+#include <Python.h>
 #include <dlfcn.h>
 #include "ENBridge.h"
 
@@ -85,14 +84,14 @@ ENBridge* bridge;
     putenv("PYTHONDONTWRITEBYTECODE=1");
     
     // Set the home for the Python interpreter
-    python_home = [NSString stringWithFormat:@"%@/Python/stdlib", resourcePath, nil];
+    python_home = [NSString stringWithFormat:@"%@/python", resourcePath, nil];
     NSLog(@"PythonHome is: %@", python_home);
     wpython_home = strdup([python_home UTF8String]);
     Py_SetPythonHome(wpython_home);
     
     // Set the PYTHONPATH
-    python_path = [NSString stringWithFormat:@"PYTHONPATH=%@/Python:%@/Python/site-packages:%@/Python/stdlib",
-                   resourcePath, resourcePath, resourcePath, nil];
+    python_path = [NSString stringWithFormat:@"PYTHONPATH=%@/python:%@/python/site-packages",
+                   resourcePath, resourcePath, nil];
     NSLog(@"PYTHONPATH is: %@", python_path);
     putenv((char *)[python_path UTF8String]);
     
@@ -106,51 +105,60 @@ ENBridge* bridge;
     
     NSLog(@"Initializing Python runtime");
     Py_Initialize();
-    
-    // Set the name of the main script
-    NSString *mainScript = [NSString stringWithFormat:@"Python/main", nil];
-    main_script = [[[NSBundle mainBundle] pathForResource:mainScript ofType:@"py"] cStringUsingEncoding:NSUTF8StringEncoding];
-    
-    if (main_script == NULL) {
-        NSLog(@"Unable to locate python main module file");
-        return -1;
-    }
-    
-    // Construct argv for the interpreter
-    //python_argv = PyMem_Malloc(sizeof(char *) * argc);
-    //
-    //python_argv[0] = strdup(main_script);
-    //for (i = 1; i < argc; i++) {
-    //    python_argv[i] = argv[i];
-    //}
-    
-    
-    //PySys_SetArgv(argc, python_argv);
-    
+
     // If other modules are using threads, we need to initialize them.
     PyEval_InitThreads();
-    
-    // Start the main.py script
-    NSLog(@"Running %s", main_script);
         
     @try {
-        FILE* fd = fopen(main_script, "r");
-        if (fd == NULL) {
-            ret = 1;
-            NSLog(@"Unable to open main.py, abort.");
+
+        ret = PyRun_SimpleString(
+          "try:\n"\
+          "    import os\n" \
+          "    import sys\n" \
+          "    import imp\n" \
+          "    class _ExtensionImporter(object):\n" \
+          "        extension_modules = {}\n" \
+          "        def __init__(self):\n" \
+          "            ext_type = 'dylib' if sys.platform == 'darwin' else 'so'\n" \
+          "            prefix = 'lib.'\n" \
+          "            lib_dir = os.environ.get('PY_LIB_DIR','.')\n" \
+          "            for lib in os.listdir(lib_dir):\n" \
+          "                lib = lib.split('/')[-1]\n"\
+          "                if lib.startswith(prefix) and lib.endswith(ext_type):\n"\
+          "                    mod = '.'.join(lib.split('.')[1:-1])  # Strip lib and so\n" \
+          "                    self.extension_modules[mod] = os.path.join(lib_dir, lib)\n" \
+          "        def load_module(self, mod):\n" \
+          "            try:\n" \
+          "                return sys.modules[mod]\n" \
+          "            except KeyError:\n" \
+          "                pass\n" \
+          "            lib = self.extension_modules[mod]\n" \
+          "            m = imp.load_dynamic(mod, lib)\n" \
+          "            sys.modules[mod] = m\n" \
+          "            return m\n" \
+          "        def find_module(self, mod, path=None):\n" \
+          "            if mod in self.extension_modules:\n" \
+          "                return self\n" \
+          "            return None\n" \
+          "    sys.meta_path.append(_ExtensionImporter()) \n" \
+          "    print('Launching main.py...')\n"\
+          "    from main import main\n" \
+          "    main()\n" \
+          "except Exception as e:\n"\
+          "    try:\n"\
+          "        import traceback\n"\
+          "        traceback.print_exc()\n"\
+          "    except:\n"\
+          "        print(e)\n" \
+        );
+        //ret = PyRun_SimpleFileEx(fd, main_script, 1);
+        if (ret != 0) {
+            NSLog(@"Python quit abnormally!");
         } else {
-            ret = PyRun_SimpleString(
-                "from main import main\n" \
-                "main()"
-            );
-            //ret = PyRun_SimpleFileEx(fd, main_script, 1);
-            if (ret != 0) {
-                NSLog(@"Python quit abnormally!");
-            } else {
-                NSLog(@"Python quit properly!");
-            }
-            
+            NSLog(@"Python quit properly!");
         }
+            
+
     }
     @catch (NSException *exception) {
         NSLog(@"Python runtime error: %@", [exception reason]);

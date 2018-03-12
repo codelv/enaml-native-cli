@@ -3,7 +3,7 @@
 //  Enaml native bridge.
 //
 //  Created by jrm on 7/14/17.
-//  Copyright © 2017 frmdstryr. All rights reserved.
+//  Copyright © 2017-2018 Jairus Martin. All rights reserved.
 //
 #import "AppDelegate.h"
 #import "ViewController.h"

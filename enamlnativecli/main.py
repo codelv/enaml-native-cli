@@ -401,131 +401,141 @@ class BundleAssets(Command):
     title = set_default("bundle-assets")
     help = set_default("Creates a python bundle of all .py and .enaml files")
     args = set_default([
-        ('-p', dict(action='store_true',
-                    help="Create bundle by pulling from device")),
-        ('--release', dict(action='store_true',
-                           help="Create a release bundle")),
-        ('--skip-ndk-build', dict(action='store_true',
-                                  help="Don't run ndk-build")),
+        ('target', dict(nargs='?', default="android",
+                        help="Build for the given target (android, iphoneos, iphonesimulator)")),
+        ('--release', dict(action='store_true', help="Create a release bundle")),
+        ('--no-compile', dict(action='store_true', help="Don't generate python cache")),
     ])
 
     def run(self, args=None):
         ctx = self.ctx
-        env = ctx['android']
+        if args.target not in ['android', 'iphoneos', 'iphonesimulator']:
+            raise ValueError("Target must be either android, iphoneos, or iphonesimulator")
+
+        if args.target == 'android':
+            env = ctx['android']
+        else:
+            env = ctx['ios']
 
         #: Now copy to android assets folder
         #: Extracted file type
         bundle = 'python.tar.gz'
+        root = abspath(os.getcwd())
 
-        #: Run ndk build
-        if not args.skip_ndk_build:
+        # Run lib build
+        if args.target == 'android':
             #: Um, we're passing args from another command?
             self.cmds['ndk-build'].run(args)
+        else:
+            #: Collect all .so files to the lib dir
+            with cd('{conda_prefix}/{target}/lib/'.format(target=args.target, **env)):
+                dst = '{root}/ios/Libs'.format(root=root)
+                if exists(dst):
+                    shutil.rmtree(dst)
+                os.makedirs(dst)
 
-        #: Clean each arch
-        for arch in env['targets']:
+                # Copy all libs to the
+                for lib in glob('*.dylib'):
+                    excluded = [p for p in env.get('excluded', [])
+                                if fnmatch.fnmatch(lib, p)]
+                    if excluded:
+                        continue
+                    shutil.copy(lib, dst)
+
+        # Clean each arch
+        #: Remove old
+        cfg = dict(bundle_id=ctx['bundle_id'])
+        if args.target == 'android':
+            for arch in env['targets']:
+                cfg.update(dict(
+                    target='android/{}'.format(arch),
+                    local_arch=arch,
+                    arch=ANDROID_TARGETS[arch]
+                ))
+                break
+        else:
+            cfg['target'] = args.target
+
+        cfg.update(env)
+
+
+        #: Create
+        if not os.path.exists(env['python_build_dir']):
+            os.makedirs(env['python_build_dir'].format(**cfg))
+            # raise RuntimeError(
+            #     "Error: Python build doesn't exist. "
+            #     "You should run './enaml-native build-python' first!")
+
+        with cd(env['python_build_dir']):
+            #: Remove old build
+            if os.path.exists('build'):
+                shutil.rmtree('build')
+
+            #: Copy python/ build/
+            cp('{conda_prefix}/{target}/python/'.format(**cfg),
+               '{python_build_dir}/build'.format(**cfg))
+
+            #: Copy sources from app source
+            for src in ctx.get('sources', ['src']):
+                cp(join(root, src), 'build')
+
+            #: Clean any excluded sources
+            with cd('build'):
+
+                if not args.no_compile:
+                    # Compile to pyc
+                    compileall.compile_dir('.')
+
+                    # Remove all py files
+                    for dp, dn, fn in os.walk('.'):
+                        for f in glob(join(dp, '*.py')):
+                            if exists(f+'c') or exists(f+'o'):
+                                os.remove(f)
+
+                # Exclude all py files and any user added patterns
+                for pattern in env.get('excluded', [])+['*.dist-info']:
+                    matches = glob(pattern)
+                    for m in matches:
+                        shutil.rmtree(m)
+
             #: Remove old
-            cfg = dict(arch=ANDROID_TARGETS[arch],
-                       local_arch=arch,
-                       bundle_id=ctx['bundle_id'])
-            cfg.update(env)
-            root = abspath(os.getcwd())
+            for ext in ['.zip', '.tar.lz4', '.so', '.tar.gz']:
+                if exists('python.{}'.format(ext)):
+                    os.remove('python.{}'.format(ext))
 
-            #: Create
-            if not os.path.exists(env['python_build_dir']):
-                os.makedirs(env['python_build_dir'].format(**cfg))
-                # raise RuntimeError(
-                #     "Error: Python build doesn't exist. "
-                #     "You should run './enaml-native build-python' first!")
+            #: Zip everything and copy to assets arch to build
+            with cd('build'):
+                print(Colors.CYAN+"[DEBUG] Creating python bundle..."+ \
+                      Colors.RESET)
+                with tarfile.open('../'+bundle, "w:gz") as tar:
+                    tar.add('.')
 
-            with cd(env['python_build_dir']):
-                #: Remove old build
-                if os.path.exists('build'):
-                    shutil.rmtree('build')
-
-                if args and args.p:
-                    #: Restart as root
-                    shprint(sh.adb, 'root')
-
-                    #: Pull assets and cache from device
-                    shprint(sh.adb, 'pull',
-                            '/data/user/0/{bundle_id}/assets/python/'.format(
-                                **cfg),
-                            'build')
-                else:
-                    #: Copy python/ build/
-                    cp(
-                        '{conda_prefix}/android/{arch}/python/'.format(**cfg),
-                        '{python_build_dir}/build'.format(**cfg))
-                        #shprint(sh.cp, '-R', '.',
-                        #        '{python_build_dir}/build'.format(**cfg))
-
-                    #: Copy sources from app source
-                    for src in ctx.get('sources', ['src']):
-                        cp(join(root, src), 'build')
-                        # shprint(sh.cp, '-R', join(root, src, '.'), 'build')
-
-                    #: Clean any excluded sources
-                    with cd('build'):
-                        # Compile to pyc
-                        compileall.compile_dir('.')
-
-                        # Remove all py files
-                        for dp, dn, fn in os.walk('.'):
-                            for f in glob(join(dp, '*.py')):
-                                if exists(f+'c') or exists(f+'o'):
-                                    os.remove(f)
-
-                        # Exclude all py files and any user added patterns
-                        for pattern in env.get('excluded', [])+['*.dist-info']:
-                            matches = glob(pattern)
-                            for m in matches:
-                                shutil.rmtree(m)
-                                #shprint(sh.rm, '-R', *matches)
-
-                #: Remove old
-                if os.path.exists('python.zip'):
-                    shprint(sh.rm, 'python.zip')
-
-                #: Build tar.lz4
-                if os.path.exists('python.tar.lz4'):
-                    shprint(sh.rm, 'python.tar.lz4')
-
-                #: Zip everything and copy to assets arch to build
-                with cd('build'):
-                    print(Colors.CYAN+"[DEBUG] Creating python bundle..."+ \
-                          Colors.RESET)
-                    with tarfile.open('../'+bundle, "w:gz") as tar:
-                        tar.add('python', arcname=os.path.basename('python'))
-
-                    #shprint(sh.zip, '-r',
-                    # 'android/app/src/main/assets/python/python.zip', '.')
-                    #shprint(sh.zip, '-r', '../python.zip', '.')
-                    #shprint(sh.tar, '-zcvf', '../python.tar.gz', '.')
-                    #shprint(sh.bash, '-c',
-                    # 'tar czf - build | lz4 -9 - python.tar.lz4')
-                    # import msgpack
-                    # import lz4
-                    # import lz4.frame
-                    # with open('../libpybundle.so', 'wb') as source:
-                    #     data = {}
-                    #     for root, dirs, files in os.walk("."):
-                    #         for file in files:
-                    #             path = join(root, file)[2:]  # Skip ./
-                    #
-                    #             # TODO Compile to pyc here
-                    #             with open(path, 'rb') as f:
-                    #                 data[path] = f.read()
-                    #     for k in data.keys():
-                    #         print(k)
-                    #     msgpack.pack(data, source)
-                    # # Compress with lz4
-                    # MINHC = lz4.frame.COMPRESSIONLEVEL_MINHC
-                    # with lz4.frame.open('../libpybundle.lz4', 'wb',
-                    #                     compression_level=MINHC) as f:
-                    #     f.write(msgpack.packb(data))
-
-            break  #: They should all be the same so stop after the first
+                #shprint(sh.zip, '-r',
+                # 'android/app/src/main/assets/python/python.zip', '.')
+                #shprint(sh.zip, '-r', '../python.zip', '.')
+                #shprint(sh.tar, '-zcvf', '../python.tar.gz', '.')
+                #shprint(sh.bash, '-c',
+                # 'tar czf - build | lz4 -9 - python.tar.lz4')
+                # import msgpack
+                # import lz4
+                # import lz4.frame
+                # with open('../libpybundle.so', 'wb') as source:
+                #     data = {}
+                #     for root, dirs, files in os.walk("."):
+                #         for file in files:
+                #             path = join(root, file)[2:]  # Skip ./
+                #
+                #             # TODO Compile to pyc here
+                #             with open(path, 'rb') as f:
+                #                 data[path] = f.read()
+                #     for k in data.keys():
+                #         print(k)
+                #     msgpack.pack(data, source)
+                # # Compress with lz4
+                # MINHC = lz4.frame.COMPRESSIONLEVEL_MINHC
+                # with lz4.frame.open('../libpybundle.lz4', 'wb',
+                #                     compression_level=MINHC) as f:
+                #     f.write(msgpack.packb(data))
 
         # Copy to each lib dir
         #for arch in env['targets']:
@@ -535,27 +545,21 @@ class BundleAssets(Command):
         #   print("Copying bundle to {}...".format(dst))
         #   shutil.copy(src, dst)
 
-        #: Now copy the tar.lz4 and rename as a special ".so" file
-        #: to trick android into extracting from the apk on install
-        #for a in env['arches']:
-        #    shprint(sh.cp,
-        #            '{python_build_dir}/python.tar.lz4'.format(**env),
-        #            'android/app/src/main/libs/{arch}/libpymodules.so'.format(
-        #               arch=a))
+        # Copy to Android assets
+        if args.target == 'android':
+            cp('{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
+               'android/app/src/main/assets/python/{bundle}'.format(bundle=bundle))
 
-        #: Tar is about 25% smaller and significantly 4x faster at unpacking
-        # if not exists('android/app/src/main/assets/python/'):
-        #     os.makedirs('android/app/src/main/assets/python/')
-        #
-        cp('{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
-           'android/app/src/main/assets/python/{bundle}'.format(bundle=bundle))
+        # Copy to iOS assets
+        else:
+            # TODO Use the bundle!
+            cp('{python_build_dir}/build'.format(bundle=bundle, **env),
+               'ios/assets/python'.format(bundle=bundle))
 
-        #: And wth, just copy it to the ios folder too :)
-        # shprint(sh.cp,
-        #         '{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
-        #         'ios/App/Python/{bundle}'.format(bundle=bundle))
-        #: Can iOS unpack this??
-        print("Done!")
+            #cp('{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
+            #   'ios/app/src/main/assets/python/{bundle}'.format(bundle=bundle))
+
+        print(Colors.GREEN+"[INFO] Python bundled successfully!"+Colors.RESET)
 
 
 class ListPackages(Command):

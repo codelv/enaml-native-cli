@@ -3,14 +3,14 @@
 //  Enaml native bridge implementation
 //
 //  Created by jrm on 7/14/17.
-//  Copyright © 2017 frmdstryr. All rights reserved.
+//  Copyright © 2017-2018 Jairus Martin. All rights reserved.
 //
 
 #import "ENBridge.h"
 #import <Foundation/Foundation.h>
 #import <MPMessagePack/MPMessagePack.h>
 #import <UIKit/UIKit.h>
-#include <Python/Python.h>
+#include <Python.h>
 #import "UIColor+HexString.h"
 #import "UIScrollView+AutoResize.h"
 

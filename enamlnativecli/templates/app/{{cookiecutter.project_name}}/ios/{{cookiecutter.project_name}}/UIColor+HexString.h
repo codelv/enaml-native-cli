@@ -1,9 +1,8 @@
 //
 //  UIColor+HexString.h
-//  demo
 //
 //  Created by jrm on 8/15/17.
-//  Copyright © 2017 frmdstryr. All rights reserved.
+//  Copyright © 2017-2018 Jairus Martin. All rights reserved.
 //
 
 #ifndef UIColor_HexString_h
