@@ -62,6 +62,8 @@ def cp(src, dst):
     """ Like cp -R src dst """
     print("[DEBUG]:   -> copying {} to {}".format(src, dst))
     if os.path.isfile(src):
+        if not exists(dirname(dst)):
+            os.makedirs(dirname(dst))
         shutil.copy(src, dst)
     else:
         copy_tree(src, dst)
