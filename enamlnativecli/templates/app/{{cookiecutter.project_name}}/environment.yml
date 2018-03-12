@@ -7,12 +7,13 @@ channels:
 
 # App dependencies to be installed
 dependencies:
+  - python<3
   - enaml-native
 
-# Exclude unused packages and libs using glob patterns
-# only the ones required by enaml-native are left in
-# if you need to use a module (ex json) then remove
-# lib._json.so from this list. You can also add specific
+# Exclude unused packages and libs using glob patterns here.
+# Only the ones required by enaml-native are left in by default.
+# If you need to use a module (ex json) then remove lib._json.so
+# from this list so it does not get exlcuded. You can also add specific
 # exclusions under ios and android.
 excluded:
   # Packages
@@ -21,6 +22,7 @@ excluded:
   - distutils
   - lib2to3
   - pydoc_data
+  - hotshot
   - site-packages/enaml/qt
   - site-packages/enaml/workbench
   - site-packages/enaml/*lib

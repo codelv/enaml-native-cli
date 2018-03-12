@@ -61,7 +61,10 @@ def cd(newdir):
 def cp(src, dst):
     """ Like cp -R src dst """
     print("[DEBUG]:   -> copying {} to {}".format(src, dst))
-    copy_tree(src, dst)
+    if os.path.isfile(src):
+        shutil.copy(src, dst)
+    else:
+        copy_tree(src, dst)
 
 
 def shprint(cmd, *args, **kwargs):
@@ -1530,7 +1533,7 @@ class EnamlNativeCli(Atom):
 
         else:
             with open(self.package) as f:
-                ctx = yaml.load(f)
+                ctx = yaml.load(f, Loader=yaml.RoundTripLoader)
 
         if self.in_app_directory:
             # Update the env for each platform
