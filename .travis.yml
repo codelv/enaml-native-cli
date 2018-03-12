@@ -52,6 +52,10 @@ before_install:
   - conda update -q conda
   - conda info -a
 
+  # Wait for device
+  - while ! adb shell getprop ro.build.version.sdk; do
+      sleep 1
+    done
 
 install:
 
