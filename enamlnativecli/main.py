@@ -1276,7 +1276,7 @@ class Server(Command):
     def run(self, args=None):
         ctx = self.ctx
         #: Look for tornado or twisted in reqs
-        use_twisted = 'twisted' in ctx['dependencies']
+        use_twisted = 'twisted' in ', '.join(ctx.get('dependencies', []))
 
         #: Save setting
         self.remote_debugging = args and args.remote_debugging
