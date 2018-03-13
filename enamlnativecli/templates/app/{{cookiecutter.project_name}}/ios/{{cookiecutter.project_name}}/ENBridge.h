@@ -21,9 +21,9 @@
 - (void) setViewController:(ViewController *) controller;
 
 - (id) getObject:(NSNumber *) objId;
-- (void) createObject:(NSNumber *)objId withType:(NSString *) className usingConstructor:(NSString*) constructor withArgs:(NSArray *) args;
-- (void) updateObject:(NSNumber *)objId andReturn:(NSNumber *)returnId usingMethod:(NSString *) method withArgs:(NSArray *) args;
-- (void) updateObject:(NSNumber *)objId usingField: (NSString *) field withValue: (NSObject *) value;
+- (void) createObject:(NSNumber *)objId withCacheId:(NSNumber *)cacheId withType:(NSString *) className usingConstructor:(NSString*) constructor withArgs:(NSArray *) args;
+- (void) updateObject:(NSNumber *)objId andReturn:(NSNumber *)returnId withCacheId:(NSNumber *)cacheId usingMethod:(NSString *) method withArgs:(NSArray *) args;
+- (void) updateObject:(NSNumber *)objId withCacheId:(NSNumber *)cacheId usingField: (NSString *) field withValue: (NSArray *) value;
 - (void) deleteObject:(NSNumber *)objId;
 
 - (void) setResult:(NSNumber *)objId withValue:(NSObject *) result;

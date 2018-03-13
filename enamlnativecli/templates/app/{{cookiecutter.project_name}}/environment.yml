@@ -30,7 +30,6 @@ excluded:
 
   - lib._cod*
   - lib._csv.so
-  - lib._ctypes.so
   - lib.cPickle.so
   - lib._element*
   - lib.cmath.so
@@ -56,6 +55,8 @@ android:
     - x86
     - arm
     - arm64
+  excluded:
+    - lib._ctypes.so
 
 # iOS specific configuration
 ios:

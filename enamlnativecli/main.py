@@ -1183,15 +1183,18 @@ class RunIOS(Command):
         ctx = self.ctx
         env = ctx['ios']
         with cd('ios'):
+            ws = glob("*.xcworkspace")
+            if not ws:
+                raise RuntimeError("Couldn't find a xcworkspace in the ios folder! "
+                                   "Did you run `pod install`? ")
+            workspace = ws[0]
+            scheme = '.'.join(workspace.split('.')[0:-1])
             shprint(sh.xcrun, 'xcodebuild',
-                    '-scheme', env['project'],
-                    '-workspace', '{project}.xcworkspace'.format(**env),
-                    '-configuration',
-                    'Release' if args and args.release else 'Debug',
-                    #'-destination',
-                    # 'platform=iOS Simulator,name=iPhone 7 Plus,OS=10.2',
-                    '-derivedDataPath',
-                    'run')
+                    '-scheme', scheme,
+                    '-workspace', workspace,
+                    '-configuration', 'Release' if args and args.release else 'Debug',
+                    '-allowProvisioningUpdates',
+                    '-derivedDataPath', 'run')
             #shprint(sh.xcrun, 'simctl', 'install', 'booted',
             #        'build/Build/Products/Debug-iphonesimulator/
             #           {project}.app'.format(**env))
@@ -1208,16 +1211,19 @@ class BuildIOS(Command):
     def run(self, args=None):
         ctx = self.ctx
         with cd('ios'):
+            ws = glob("*.xcworkspace")
+            if not ws:
+                raise RuntimeError("Couldn't find a xcworkspace in the ios folder! "
+                                   "Did you run `pod install`? ")
+            workspace = ws[0]
+            scheme = '.'.join(workspace.split('.')[0:-1])
             shprint(sh.xcrun,
                     'xcodebuild',
-                    '-scheme', ctx['project_name'],
-                    '-workspace', '{project_name}.xcworkspace'.format(**ctx),
-                    '-configuration',
-                    'Release' if args and args.release else 'Debug',
-                    #'-destination',
-                    # 'platform=iOS Simulator,name=iPhone 7 Plus,OS=10.2',
-                    '-derivedDataPath',
-                    'build')
+                    '-scheme', scheme,
+                    '-workspace', workspace,
+                    '-configuration', 'Release' if args and args.release else 'Debug',
+                    '-allowProvisioningUpdates',
+                    '-derivedDataPath', 'build')
 
 
 class Server(Command):
