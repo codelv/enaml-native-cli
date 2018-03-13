@@ -23,6 +23,7 @@ before_install:
   # Install sdk, ndk, and build tools
   - echo yes | tools/bin/sdkmanager --update > output.log
   - echo yes | tools/bin/sdkmanager "platforms;android-27" > output.log
+  - echo yes | tools/bin/sdkmanager "platforms;android-25" > output.log
   - echo yes | tools/bin/sdkmanager "build-tools;27.0.3" > output.log
   - echo yes | tools/bin/sdkmanager "extras;google;m2repository" > output.log
   - echo yes | tools/bin/sdkmanager "extras;android;m2repository" > output.log
@@ -32,8 +33,7 @@ before_install:
 
   # Start the emulator!
   - tools/bin/avdmanager list
-  - ln -s tools/emulator64-x86 tools/emulator-x86
-  - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-25;google_apis;armeabi-v7a'
+  - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-25;google_apis;armeabi-v7a' --device "Nexus 5X"
   - tools/emulator -avd test -no-audio -no-window &
   #- platform-tools/adb wait-for-device
   - export PATH="$ANDROID_HOME/platform-tools:$PATH"
@@ -54,6 +54,7 @@ before_install:
 
   # Wait for device
   - while ! adb shell getprop ro.build.version.sdk; do sleep 1; done
+  - adb devices
 
 install:
 
