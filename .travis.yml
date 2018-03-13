@@ -54,7 +54,10 @@ before_install:
 
   # Wait for device
   - while ! adb shell getprop ro.build.version.sdk; do sleep 1; done
-  - while [ "`adb shell getprop sys.boot_completed | tr -d '\r' `" != "1" ] ; do sleep 1; done
+  - while [ "`adb shell getprop sys.boot_completed | tr -d '\r' `" != "1" ] ; do
+      sleep 1;
+      echo "Waiting for device...";
+    done
   - adb devices
 
 install:
