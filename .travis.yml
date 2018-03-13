@@ -32,11 +32,13 @@ before_install:
   - echo yes | tools/bin/sdkmanager --licenses > output.log
 
   # Start the emulator!
-  - tools/bin/avdmanager list
-  - echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-25;google_apis;armeabi-v7a' --device "Nexus 5X"
+  - export PATH="$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$PATH"
+  #- tools/bin/avdmanager list
+  #- echo no | tools/bin/avdmanager create avd --force --name test --package 'system-images;android-25;google_apis;armeabi-v7a' --device "Nexus 5X"
+  - android list target
+  - echo no | android create avd --force -n test -t android-25 --abi armeabi-v7a
   - tools/emulator -avd test -no-audio -no-window &
   #- platform-tools/adb wait-for-device
-  - export PATH="$ANDROID_HOME/platform-tools:$PATH"
   - cd $TRAVIS_BUILD_DIR
 
   # Install miniconda
@@ -53,7 +55,11 @@ before_install:
   - conda info -a
 
   # Wait for device
-  - sh tests/wait-for-emulator.sh
+  - while ! adb shell getprop ro.build.version.sdk; do sleep 1; done
+  - while [ "`adb shell getprop sys.boot_completed | tr -d '\r' `" != "1" ] ; do
+      sleep 1;
+      echo "Waiting for device...";
+    done
   - adb devices
 
 install:
