@@ -669,43 +669,43 @@ class Link(Command):
     ])
 
     #: Where "enaml native packages" are installed within the root
-    package_dir = 'android/'
+    package_dir = 'venv'
 
     def run(self, args=None):
-        print("Linking {}".format(args.names if args else "all packages..."))
+        print("Linking {}".format(args.names if args and args.names
+                                  else "all packages..."))
 
         if args and args.names:
             for name in args.names:
                 self.link(self.package_dir, name)
         else:
             #: Link everything
-            for pkg in os.listdir(self.package_dir):
-                if pkg == 'enaml-native-cli':
-                    continue
-                elif not os.path.isfile(pkg):
-                    self.link(self.package_dir, pkg)
+            for target in ['android', 'iphoneos', 'iphonesimulator']:
+                sysroot = join(self.package_dir, target)
+                for path in os.listdir(sysroot):
+                    self.link(sysroot, path)
 
     def link(self, path, pkg):
         """ Link the package in the current directory.
         """
-        #: Check if a custom linker exists to handle linking this package
-        for ep in pkg_resources.iter_entry_points(group="enaml_native_linker"):
-            if ep.name.replace("-", '_') == pkg.replace("-", '_'):
-                linker = ep.load()
-                print("Custom linker {} found for '{}'. Linking...".format(
-                    linker, pkg))
-                if linker(self.ctx, path):
-                    return
+        # Check if a custom linker exists to handle linking this package
+        #for ep in pkg_resources.iter_entry_points(group="enaml_native_linker"):
+        #    if ep.name.replace("-", '_') == pkg.replace("-", '_'):
+        #        linker = ep.load()
+        #        print("Custom linker {} found for '{}'. Linking...".format(
+        #            linker, pkg))
+        #        if linker(self.ctx, path):
+        #            return
 
         #: Use the default builtin linker script
-        if exists(join(path, pkg, 'android', 'build.gradle')):
+        if exists(join(path, pkg, 'build.gradle')):
+            print(Colors.BLUE+"[INFO] Linking {}/build.gradle".format(
+                  pkg)+Colors.RESET)
             self.link_android(path, pkg)
-        else:
-            print("Android project does not need linked for {}".format(pkg))
-        if exists(join(path, pkg, 'ios', 'Podfile')):
+        if exists(join(path, pkg, 'Podfile')):
+            print(Colors.BLUE+"[INFO] Linking {}/Podfile".format(
+                  pkg)+Colors.RESET)
             self.link_ios(path, pkg)
-        else:
-            print("iOS project does not need linked for {}".format(pkg))
 
     @staticmethod
     def is_settings_linked(source, pkg):
@@ -721,7 +721,7 @@ class Link(Command):
         """ Returns true if the "compile project(':<project>')"
             line exists exists in the file """
         for line in source.split("\n"):
-            if re.search(r"compile\s+project\(['\"]:{}['\"]\)".format(pkg),
+            if re.search(r"(api|compile)\s+project\(['\"]:{}['\"]\)".format(pkg),
                          line):
                 return True
         return False
@@ -732,7 +732,7 @@ class Link(Command):
         the given enaml package directory relative to the java source path.
         """
         matches = []
-        root = join(path, 'android', 'src', 'main', 'java')
+        root = join(path, 'src', 'main', 'java')
         for folder, dirnames, filenames in os.walk(root):
             for filename in fnmatch.filter(filenames, '*Package.java'):
                 #: Open and make sure it's an EnamlPackage somewhere
@@ -773,17 +773,18 @@ class Link(Command):
         """
 
         bundle_id = self.ctx['bundle_id']
+        pkg_root = join(path, pkg)
 
         #: Check if it's already linked
-        with open('android/settings.gradle') as f:
+        with open(join('android', 'settings.gradle')) as f:
             settings_gradle = f.read()
-        with open('android/app/build.gradle') as f:
+        with open(join('android', 'app', 'build.gradle')) as f:
             build_gradle = f.read()
 
         #: Find the MainApplication.java
-        main_app_java_path = 'android/app/src/main/java/{}/' \
-                             'MainApplication.java'.format(
-            bundle_id.replace(".", "/"))
+        main_app_java_path = join('android', 'app', 'src', 'main', 'java',
+                                  join(*bundle_id.split(".")),
+                                  'MainApplication.java')
         with open(main_app_java_path) as f:
             main_application_java = f.read()
 
@@ -791,21 +792,22 @@ class Link(Command):
             #: Now link all the EnamlPackages we can find in the new "package"
             new_packages = Link.find_packages(join(path, pkg))
             if not new_packages:
-                print("\t[Android] {} No EnamlPackages found to link!".format(pkg))
+                print("\t[Android] {} No EnamlPackages found to link!".format(
+                      pkg))
                 return
 
             #: Link settings.gradle
             if not Link.is_settings_linked(settings_gradle, pkg):
                 #: Add two statements
                 new_settings = settings_gradle.split("\n")
-                new_settings.append("") # Blank line
+                new_settings.append("")  # Blank line
                 new_settings.append("include ':{name}'".format(name=pkg))
                 new_settings.append("project(':{name}').projectDir = "
                                     "new File(rootProject.projectDir, "
-                                    "'../{path}/{name}')"
+                                    "'../{path}/android/{name}')"
                                     .format(name=pkg, path=self.package_dir))
 
-                with open('android/settings.gradle', 'w') as f:
+                with open(join('android', 'settings.gradle'), 'w') as f:
                     f.write("\n".join(new_settings))
                 print("\t[Android] {} linked in settings.gradle!".format(pkg))
             else:
@@ -829,13 +831,13 @@ class Link(Command):
                         break
                 if not found:
                     raise ValueError("Unable to find dependencies in "
-                                     "android/app/build.gradle!")
+                                     "{pkg}/app/build.gradle!".format(pkg=pkg))
 
                 #: Insert before the closing bracket
-                new_build.insert(i, "    compile project(':{name}')".format(
+                new_build.insert(i, "    api project(':{name}')".format(
                     name=pkg))
 
-                with open('android/app/build.gradle', 'w') as f:
+                with open(join('android', 'app', 'build.gradle'), 'w') as f:
                     f.write("\n".join(new_build))
                 print("\t[Android] {} linked in app/build.gradle!".format(pkg))
             else:
@@ -885,15 +887,17 @@ class Link(Command):
                 with open(main_app_java_path, 'w') as f:
                     f.write("\n".join(new_app_java))
 
-            print("\t[Android] {} linked successfully!".format(pkg))
+            print(Colors.GREEN+"\t[Android] {} linked successfully!".format(
+                  pkg)+Colors.RESET)
         except Exception as e:
-            print("\t[Android] {} Failed to link. Reverting due to error: "
-                  "{}".format(pkg, e))
+            print(Colors.GREEN+"\t[Android] {} Failed to link. "
+                               "Reverting due to error: "
+                               "{}".format(pkg, e)+Colors.RESET)
 
             #: Undo any changes
-            with open('android/settings.gradle', 'w') as f:
+            with open(join('android', 'settings.gradle'), 'w') as f:
                 f.write(settings_gradle)
-            with open('android/app/build.gradle', 'w') as f:
+            with open(join('android', 'app', 'build.gradle'), 'w') as f:
                 f.write(build_gradle)
             with open(main_app_java_path, 'w') as f:
                 f.write(main_application_java)
@@ -930,7 +934,8 @@ class Unlink(Command):
 
     def run(self, args=None):
         """ The name IS required here. """
-        print("Unlinking {}...".format(args.names))
+        print(Colors.BLUE+"[INFO] Unlinking {}...".format(
+              args.names)+Colors.RESET)
         for name in args.names:
             self.unlink(Link.package_dir, name)
 
@@ -947,14 +952,14 @@ class Unlink(Command):
                 if unlinker(self.ctx, path):
                     return
 
-        if exists(join(path, pkg, 'android', 'build.gradle')):
+        if exists(join(path, 'android', pkg, 'build.gradle')):
+            print("[Android] unlinking {}".format(pkg))
             self.unlink_android(path, pkg)
-        else:
-            print("Android project does not need unlinked for {}".format(pkg))
-        if exists(join(path, pkg, 'ios', 'Podfile')):
-            self.link_ios(path, pkg)
-        else:
-            print("iOS project does not need unlinked for {}".format(pkg))
+
+        for target in ['iphoneos', 'iphonesimulator']:
+            if exists(join(path, target, pkg, 'Podfile')):
+                print("[iOS] unlinking {}".format(pkg))
+                self.unlink_ios(path, pkg)
 
     def unlink_android(self, path, pkg):
         """ Unlink's the android project to this library.
@@ -983,24 +988,24 @@ class Unlink(Command):
         bundle_id = self.ctx['bundle_id']
 
         #: Check if it's already linked
-        with open('android/settings.gradle') as f:
+        with open(join('android', 'settings.gradle')) as f:
             settings_gradle = f.read()
-        with open('android/app/build.gradle') as f:
+        with open(join('android', 'app', 'build.gradle')) as f:
             build_gradle = f.read()
 
         #: Find the MainApplication.java
-        main_app_java_path = 'android/app/src/main/java/{}/' \
-                             'MainApplication.java'.format(
-            bundle_id.replace(".", "/"))
+        main_app_java_path = join('android', 'app', 'src', 'main', 'java',
+                                  join(*bundle_id.split(".")),
+                                  'MainApplication.java')
         with open(main_app_java_path) as f:
             main_application_java = f.read()
 
         try:
             #: Now link all the EnamlPackages we can find in the new "package"
-            new_packages = Link.find_packages(join(path, pkg))
+            new_packages = Link.find_packages(join(path, 'android', pkg))
             if not new_packages:
-                print("\t[Android] {} No EnamlPackages found to "
-                      "unlink!".format(pkg))
+                print(Colors.RED+"\t[Android] {} No EnamlPackages found to "
+                                 "unlink!".format(pkg)+Colors.RESET)
                 return
 
             #: Unlink settings.gradle
@@ -1012,12 +1017,12 @@ class Unlink(Command):
                         "include ':{name}'".format(name=pkg),
                         "project(':{name}').projectDir = "
                         "new File(rootProject.projectDir, "
-                        "'../{path}/{name}/android')"
-                            .format(name=pkg, path=Link.package_dir)
+                        "'../{path}/android/{name}')".format(path=path,
+                                                             name=pkg)
                     ]
                 ]
 
-                with open('android/settings.gradle', 'w') as f:
+                with open(join('android', 'settings.gradle'), 'w') as f:
                     f.write("\n".join(new_settings))
                 print("\t[Android] {} unlinked settings.gradle!".format(pkg))
             else:
@@ -1030,10 +1035,12 @@ class Unlink(Command):
                 new_build = [
                     line for line in build_gradle.split("\n")
                     if line.strip() not in [
-                        "compile project(':{name}')".format(name=pkg)]
+                        "compile project(':{name}')".format(name=pkg),
+                        "api project(':{name}')".format(name=pkg),
+                    ]
                 ]
 
-                with open('android/app/build.gradle', 'w') as f:
+                with open(join('android', 'app', 'build.gradle'), 'w') as f:
                     f.write("\n".join(new_build))
 
                 print("\t[Android] {} unlinked in "
@@ -1085,16 +1092,17 @@ class Unlink(Command):
                 with open(main_app_java_path, 'w') as f:
                     f.write("\n".join(new_app_java))
 
-            print("\t[Android] {} unlinked successfully!".format(pkg))
+            print(Colors.GREEN+"\t[Android] {} unlinked successfully!".format(
+                  pkg)+Colors.RESET)
 
         except Exception as e:
-            print("\t[Android] {} Failed to unlink. "
-                  "Reverting due to error: {}".format(pkg, e))
+            print(Colors.RED+"\t[Android] {} Failed to unlink. "
+                  "Reverting due to error: {}".format(pkg, e)+Colors.RESET)
 
             #: Undo any changes
-            with open('android/settings.gradle', 'w') as f:
+            with open(join('android', 'settings.gradle'), 'w') as f:
                 f.write(settings_gradle)
-            with open('android/app/build.gradle', 'w') as f:
+            with open(join('android', 'app', 'build.gradle'), 'w') as f:
                 f.write(build_gradle)
             with open(main_app_java_path, 'w') as f:
                 f.write(main_application_java)
