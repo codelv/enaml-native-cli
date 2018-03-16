@@ -15,6 +15,7 @@ import sh
 import os
 import re
 import sys
+import json
 import shutil
 import tarfile
 import fnmatch
@@ -251,13 +252,15 @@ class MakePipRecipe(Command):
             meta['package']['name'] = 'pip-'+meta['package']['name']
 
             # Remove description it can cause issues
-            #meta['about']['description'] = "See pypi"
+            summary = meta['about'].get('summary', '')
+            summary += " Built for Android and iOS apps using enaml-native."
+            meta['about']['summary'] = summary
 
             # Update the script to install for every arch
             script = meta['build'].pop('script', '')
-            meta['build']['script_env'] = ['CC', 'CXX']
             meta['build']['noarch'] = True
-            meta['build']['script'] = [
+            build_script = ['export CC=/bin/false', 'export CXX=/bin/false']
+            build_script += [
                 '{script} --no-compile '
                 '--install-base=$PREFIX/{prefix} '
                 '--install-lib=$PREFIX/{prefix}/python/site-packages '
@@ -269,6 +272,7 @@ class MakePipRecipe(Command):
                     'android/x86_64', 'iphoneos', 'iphonesimulator'
                 ]
             ]
+            meta['build']['script'] = build_script
 
             # Prefix all dependencies with 'pip-'
             requires = []
@@ -306,9 +310,9 @@ class MakePipRecipe(Command):
 
             # Want to force a failure on any compiling
             env = os.environ.copy()
-            env.update({'CC': '/bin/false', 'CXX':'/bin/false'})
+            env.update({'CC': '/bin/false', 'CXX': '/bin/false'})
 
-            shprint(self.cli.conda, 'build', dst, *build_args, _env=env)
+            shprint(self.cli.conda, 'build', dst, *build_args)
             print(Colors.GREEN+"[INFO] Built {} successfully!".format(
                   dst)+Colors.RESET)
 
@@ -579,21 +583,9 @@ class ListPackages(Command):
 
 
 class Install(Command):
-    """ The "Install" command does a pip install of the package names given and 
-    then runs the linker command.
+    """ The "Install" command does a `conda install` of the package names given 
+    and then runs the linker command.
       
-    A custom post_install_hook can be used by adding a 
-    "enaml_native_post_install" entry_point which shall be a function that 
-    receives the app package.json (context) an argument. This is called before 
-    linking is done. The return value is ignored.
-    
-    Example
-    ----------
-    
-    def post_install(ctx):
-        #: Do any post_install steps here (ex maybe collect install stats?)
-        #: print links to docs, ask setup questions, etc.. 
-    
     """
     title = set_default("install")
     help = set_default("Install and link an enaml-native package")
@@ -605,26 +597,15 @@ class Install(Command):
     app_dir_required = set_default(False)
 
     def run(self, args):
-        shprint(sh.conda, 'install', *args.args)
+        shprint(sh.conda, 'install', '-y', *args.args)
 
         #: Link everything for now
         self.cmds['link'].run()
 
 
 class Uninstall(Command):
-    """ The "Uninstall" command unlinks the package (if needed) and does a pip 
-    uninstall of the package names given. 
-      
-    A custom pre_uninstall_hook can be used by adding a 
-    "enaml_native_pre_uninstall" entry_point which shall be a function that 
-    receives the app package.json (context) an argument. This is
-    called after unlinking is done. The return value is ignored.
-    
-    Example
-    ----------
-    
-    def pre_uninstall(ctx):
-        # Do any pre_uninstall steps here (ex maybe collect uninstall stats?)
+    """ The "Uninstall" command unlinks the package (if needed) and does a 
+    `conda uninstall` of the package names given. 
 
     """
     title = set_default("uninstall")
@@ -639,7 +620,7 @@ class Uninstall(Command):
     def run(self, args):
         #: Unlink first
         self.cmds['unlink'].run(args)
-        shprint(sh.conda, 'uninstall', *args.args)
+        shprint(sh.conda, 'uninstall', '-y', *args.args)
 
 
 class Link(Command):
@@ -792,7 +773,7 @@ class Link(Command):
             #: Now link all the EnamlPackages we can find in the new "package"
             new_packages = Link.find_packages(join(path, pkg))
             if not new_packages:
-                print("\t[Android] {} No EnamlPackages found to link!".format(
+                print("[Android] {} No EnamlPackages found to link!".format(
                       pkg))
                 return
 
@@ -809,9 +790,9 @@ class Link(Command):
 
                 with open(join('android', 'settings.gradle'), 'w') as f:
                     f.write("\n".join(new_settings))
-                print("\t[Android] {} linked in settings.gradle!".format(pkg))
+                print("[Android] {} linked in settings.gradle!".format(pkg))
             else:
-                print("\t[Android] {} was already linked in "
+                print("[Android] {} was already linked in "
                       "settings.gradle!".format(pkg))
 
             #: Link app/build.gradle
@@ -839,9 +820,9 @@ class Link(Command):
 
                 with open(join('android', 'app', 'build.gradle'), 'w') as f:
                     f.write("\n".join(new_build))
-                print("\t[Android] {} linked in app/build.gradle!".format(pkg))
+                print("[Android] {} linked in app/build.gradle!".format(pkg))
             else:
-                print("\t[Android] {} was already linked in "
+                print("[Android] {} was already linked in "
                       "app/build.gradle!".format(pkg))
 
             new_app_java = []
@@ -880,17 +861,17 @@ class Link(Command):
                                             .format(javacls.split(".")[-1]))
 
                 else:
-                    print("\t[Android] {} was already linked in {}!".format(
+                    print("[Android] {} was already linked in {}!".format(
                         pkg, main_app_java_path))
 
             if new_app_java:
                 with open(main_app_java_path, 'w') as f:
                     f.write("\n".join(new_app_java))
 
-            print(Colors.GREEN+"\t[Android] {} linked successfully!".format(
+            print(Colors.GREEN+"[Android] {} linked successfully!".format(
                   pkg)+Colors.RESET)
         except Exception as e:
-            print(Colors.GREEN+"\t[Android] {} Failed to link. "
+            print(Colors.GREEN+"[Android] {} Failed to link. "
                                "Reverting due to error: "
                                "{}".format(pkg, e)+Colors.RESET)
 
@@ -906,7 +887,7 @@ class Link(Command):
             raise
 
     def link_ios(self, path, pkg):
-        print("\t[iOS] Link TODO:...")
+        print("[iOS] Link TODO:...")
 
 
 class Unlink(Command):
