@@ -1,0 +1,13 @@
+{
+  "author": "",
+  "project_name": "native-demo",
+  "project_package": "{{cookiecutter.project_name.replace('-','')}}",
+  "widget_module": "native_view",
+  "widget_name": "{{cookiecutter.widget_module.title().replace('_','')}}",
+  "bundle_id": "com.example.package",
+  "bundle_path": "{{cookiecutter.bundle_id.replace('.','/')}}",
+  "project_license":"MIT",
+  "project_version":"1",
+  "project_url":"https://github.com/{{cookiecutter.author}}/{{cookiecutter.project_name}}",
+  "_copy_without_render": ["android/gradlew", "android/gradlew.bat"]
+}

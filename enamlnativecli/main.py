@@ -619,7 +619,9 @@ class Uninstall(Command):
 
     def run(self, args):
         #: Unlink first
-        self.cmds['unlink'].run(args)
+        if hasattr(args, 'names'):
+            # TODO...
+            self.cmds['unlink'].run(args)
         shprint(sh.conda, 'uninstall', '-y', *args.args)
 
 

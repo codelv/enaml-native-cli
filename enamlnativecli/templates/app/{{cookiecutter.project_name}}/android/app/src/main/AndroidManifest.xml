@@ -38,4 +38,9 @@
     <!-- If using LocationManager this is required.
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />  -->
 
+    <!-- To load images from local folders like DCIM or Pictures,
+         you’ll need to add the READ_EXTERNAL_STORAGE permission
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+        -->
+
 </manifest>

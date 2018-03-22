@@ -69,9 +69,14 @@ script:
   # Create and run an app
   - cd $TRAVIS_BUILD_DIR
 
-  # Create HelloWorld app and run it
+
   - mkdir tmp
   - cd tmp
+
+  # Create an android-lib
+  - enaml-native create android-lib --no-input
+
+  # Create HelloWorld app and run it
   - enaml-native create app --no-input
   - cd HelloWorld
   - source activate ./venv

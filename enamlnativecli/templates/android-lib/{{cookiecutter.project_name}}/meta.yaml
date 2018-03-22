@@ -1,0 +1,15 @@
+package:
+  name: {{cookiecutter.project_name}}
+  version: {{cookiecutter.project_version}}
+
+requirements:
+  run:
+    - enaml-native
+
+build:
+  number: 1
+  noarch: generic
+
+about:
+  home: {{cookiecutter.project_url}}
+  license: {{cookiecutter.project_license}}
