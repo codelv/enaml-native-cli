@@ -29,6 +29,7 @@ from atom.api import (Atom, Bool, Callable, Dict, List, Unicode, Float, Int,
                       Instance, set_default)
 from contextlib import contextmanager
 from cookiecutter.main import cookiecutter
+from cookiecutter.log import configure_logger
 from distutils.dir_util import copy_tree
 
 try:
@@ -157,6 +158,7 @@ class Create(Command):
         ('-f --overwrite-if-exists', dict(action='store_true',
                                           help="Overwrite the contents if"
                                                "it already exists")),
+        ('-v --verbose', dict(action='store_true', help="Verbose logging")),
     ])
 
     #: Can be run from anywhere
@@ -164,6 +166,10 @@ class Create(Command):
 
     def run(self, args):
         template = join(dirname(__file__), 'templates', args.what)
+        configure_logger(
+            stream_level='DEBUG' if args.verbose else 'INFO',
+            debug_file=None,
+        )
         cookiecutter(template,
                      no_input=args.no_input,
                      overwrite_if_exists=args.overwrite_if_exists)
