@@ -508,10 +508,14 @@ class BundleAssets(Command):
                                 os.remove(f)
 
                 # Exclude all py files and any user added patterns
-                for pattern in env.get('excluded', [])+['*.dist-info']:
+                for pattern in env.get('excluded', [])+['*.dist-info',
+                                                        '*.egg-info']:
                     matches = glob(pattern)
                     for m in matches:
-                        shutil.rmtree(m)
+                        if os.path.isdir(m):
+                            shutil.rmtree(m)
+                        else:
+                            os.remove(m)
 
             #: Remove old
             for ext in ['.zip', '.tar.lz4', '.so', '.tar.gz']:
