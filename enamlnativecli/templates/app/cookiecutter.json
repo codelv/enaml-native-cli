@@ -11,7 +11,7 @@
   "color_accent": "#97c024",
   "android_ndk": "~/Android/Sdk/ndk-bundle",
   "android_sdk_version": "27",
-  "android_min_sdk_version": "19",
+  "android_min_sdk_version": "21",
   "android_target_sdk_version": "27",
   "android_build_tools_version": "26.0.2",
   "google_maps_api_key": "none",

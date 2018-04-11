@@ -1,0 +1,37 @@
+package:
+  name: enaml-native-cli
+  version: 2.2.0
+
+requirements:
+  build:
+    - python
+
+  run:
+    # Python
+    - python
+    - requests
+    - cookiecutter
+    - sh
+    - atom
+    - ruamel.yaml
+
+    # Build tools
+    #- must apt install build-essential autopoint texinfo
+
+    - libtool
+    - autoconf
+    - automake
+
+
+build:
+  number: 1
+  noarch: generic
+  include_recipe: False
+  script:
+    - cd $RECIPE_DIR
+    - python setup.py install --single-version-externally-managed --record=record.txt --no-compile
+
+about:
+  home: http://github.com/codelv/enaml-native-cli
+  summary: "CLI for building android and iOS apps using enaml-native"
+  license: MIT
