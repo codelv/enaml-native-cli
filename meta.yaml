@@ -30,7 +30,8 @@ build:
   script:
     - cd $RECIPE_DIR
     - python setup.py install --single-version-externally-managed --record=record.txt --no-compile
-
+  entry_points:
+    - enaml-native = enamlnativecli.main:main
 about:
   home: http://github.com/codelv/enaml-native-cli
   summary: "CLI for building android and iOS apps using enaml-native"
