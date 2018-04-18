@@ -1,6 +1,6 @@
 package:
   name: enaml-native-cli
-  version: 2.2.0
+  version: 2.2.1
 
 requirements:
   build:
@@ -35,4 +35,4 @@ build:
 about:
   home: http://github.com/codelv/enaml-native-cli
   summary: "CLI for building android and iOS apps using enaml-native"
-  license: MIT
+  license: GPLv3

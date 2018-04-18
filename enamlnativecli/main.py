@@ -82,7 +82,9 @@ def shprint(cmd, *args, **kwargs):
     })
 
     print("{}[INFO]:   -> running  {} {}{}".format(
-        Colors.CYAN, cmd, " ".join(args), Colors.RESET))
+        Colors.CYAN, cmd, " ".join([a for a in args if
+                                    not isinstance(a, sh.RunningCommand)
+                                    ]), Colors.RESET))
     buf = []
     for c in cmd(*args, **kwargs):
         if debug:
@@ -321,6 +323,29 @@ class MakePipRecipe(Command):
             shprint(self.cli.conda, 'build', dst, *build_args)
             print(Colors.GREEN+"[INFO] Built {} successfully!".format(
                   dst)+Colors.RESET)
+
+
+class NdkStack(Command):
+    """ Shortcut to run ndk-stack to show debugging output of a crash in a 
+    native library.
+    
+    See https://developer.android.com/ndk/guides/ndk-stack.html
+    """
+    title = set_default("ndk-stack")
+    help = set_default("Run ndk-stack on the adb output")
+    args = set_default([
+        ('arch', dict(nargs='?', default="armeabi-v7a")),
+        ('args', dict(nargs=REMAINDER, help="Extra args for ndk-stack")),
+    ])
+
+    def run(self, args=None):
+        ctx = self.ctx
+        env = ctx['android']
+        ndk_stack = sh.Command(os.path.expanduser(join(env['ndk'],
+                                                       'ndk-stack')))
+        arch = args.arch if args else 'armeabi-v7a'
+        sym = 'venv/android/enaml-native/src/main/obj/local/{}'.format(arch)
+        shprint(ndk_stack, sh.adb('logcat', _piped=True), '-sym', sym)
 
 
 class NdkBuild(Command):
