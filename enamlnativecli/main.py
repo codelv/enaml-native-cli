@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Copyright (c) 2017, Jairus Martin.
@@ -358,6 +358,10 @@ class NdkBuild(Command):
     def run(self, args=None):
         ctx = self.ctx
         env = ctx['android']
+
+        # Lib version
+        py_version = '2.7' if sys.version_info.major < 3 else '3.6m'
+
         ndk_build = sh.Command(os.path.expanduser(join(env['ndk'],
                                                        'ndk-build')))
         arches = [ANDROID_TARGETS[arch] for arch in env['targets']]
@@ -390,6 +394,8 @@ class NdkBuild(Command):
             for line in app_mk.split("\n"):
                 if re.match(r'APP_ABI\s*:=\s*.+', line):
                     line = 'APP_ABI := {}'.format(" ".join(arches))
+                if re.match(r'PY_LIB_VER\s*:=\s*.+', line):
+                    line = 'PY_LIB_VER := {}'.format(py_version)
                 new_mk.append(line)
 
             with open('Application.mk', 'w') as f:
@@ -1590,7 +1596,7 @@ class EnamlNativeCli(Atom):
         parser = ArgumentParser(prog='enaml-native')
 
         #: Build commands by name
-        cmds = {c.title:c for c in self.commands}
+        cmds = {c.title: c for c in self.commands}
 
         #: Build parser, prepare commands
         subparsers = parser.add_subparsers()
