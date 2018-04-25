@@ -22,7 +22,7 @@ def find_data(folder):
 
 setup(
     name="enaml-native-cli",
-    version="2.2.3",
+    version="2.2.4",
     author="CodeLV",
     author_email="frmdstryr@gmail.com",
     license='GPLv3',
@@ -34,6 +34,6 @@ setup(
     packages=find_packages(),
     package_data={'': find_data('enamlnativecli')},
     include_package_data=True,
-    install_requires=['sh', 'atom', 'ruamel.yaml', 'cookiecutter'],
+    install_requires=['sh', 'atom', 'ruamel.yaml', 'cookiecutter', 'pbs'],
     test_requires=['requests', 'py.test', 'pytest-cov', 'pytest-timeout']
 )

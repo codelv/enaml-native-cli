@@ -1,0 +1,18 @@
+name: hello-world
+channels:
+  - codelv
+dependencies:
+  - enaml-native
+
+ios:
+  targets:
+    - iphoneos
+    - iphonesimulator
+
+android:
+  ndk: dilligaf
+  targets:
+    - x86_64
+    - x86
+    - arm
+    - arm64

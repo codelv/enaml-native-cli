@@ -11,7 +11,6 @@ Created on July 10, 2017
 
 @author: jrm
 """
-import sh
 import os
 import re
 import sys
@@ -36,6 +35,19 @@ try:
     from ConfigParser import ConfigParser
 except:
     from configparser import ConfigParser
+
+# sh does not work on windows
+if 'win' in sys.platform:
+    import pbs
+
+    class Sh(object):
+        def __getattr__(self, attr):
+            if hasattr(pbs, attr):
+                return getattr(pbs, attr)
+            return pbs.Command(attr)
+    sh = Sh()
+else:
+    import sh
 
 
 class Colors:
@@ -85,6 +97,19 @@ def shprint(cmd, *args, **kwargs):
         Colors.CYAN, cmd, " ".join([a for a in args if
                                     not isinstance(a, sh.RunningCommand)
                                     ]), Colors.RESET))
+
+    if 'win' in sys.platform:
+        kwargs.pop('_out_bufsize')
+        kwargs.pop('_iter')
+        kwargs['_bg'] = True
+        process = cmd(*args, **kwargs).process
+        for c in iter(lambda: process.stdout.read(1),''):
+            write(c)
+            if c in ['\r', '\n']:
+                flush()
+        process.wait()
+        return
+
     buf = []
     for c in cmd(*args, **kwargs):
         if debug:
@@ -638,6 +663,10 @@ class Install(Command):
     app_dir_required = set_default(False)
 
     def run(self, args):
+        if os.environ.get('CONDA_DEFAULT_ENV') in [None, 'root']:
+            print(Colors.RED+'enaml-native install should only be used'
+                             'within an app env!'+Colors.RESET)
+            raise SystemExit(0)
         shprint(sh.conda, 'install', '-y', *args.args)
 
         #: Link everything for now
@@ -659,6 +688,10 @@ class Uninstall(Command):
     app_dir_required = set_default(False)
 
     def run(self, args):
+        if os.environ.get('CONDA_DEFAULT_ENV') in [None, 'root']:
+            print(Colors.RED+'enaml-native uninstall should only be used'
+                             'within an app env!'+Colors.RESET)
+            raise SystemExit(0)
         #: Unlink first
         if hasattr(args, 'names'):
             # TODO...

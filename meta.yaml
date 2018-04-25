@@ -1,31 +1,29 @@
 package:
   name: enaml-native-cli
-  version: 2.2.3
+  version: 2.2.4
 
 requirements:
   build:
     - python
-
   run:
-    # Python
+    - pip
     - requests
-    - cookiecutter
-    - sh
     - atom
-    - ruamel.yaml
-    - watchdog
     - tornado
+    # On linux you must apt install build-essential autopoint texinfo
+    - libtool # [not win]
+    - autoconf # [not win]
+    - automake # [not win]
 
-    # Build tools
-    #- must apt install build-essential autopoint texinfo
-
-    - libtool
-    - autoconf
-    - automake
+    # These don't have windows packagesy
+    - cookiecutter # [not win]
+    - sh # [not win]
+    - ruamel.yaml # [not win]
+    - watchdog # [not win]
 
 
 build:
-  number: 5
+  number: 2
   noarch: python
   include_recipe: False
   script:

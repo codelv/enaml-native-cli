@@ -1,3 +1,7 @@
+# 2.2.4
+
+- Add windows support
+
 # 2.2.2
 
 - Add python 3 support
