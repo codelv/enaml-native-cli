@@ -1,3 +1,7 @@
+# 2.2.5
+
+- Fix bug where python 3 is trying to use ndk-build on 2.7
+
 # 2.2.4
 
 - Add windows support

@@ -410,7 +410,7 @@ class NdkBuild(Command):
         #: Do ndk-build in the jni dir
         with cd(jni_dir):
 
-            #: Patch Applicaiton.mk to have the correct ABI's
+            #: Patch Application.mk to have the correct ABI's
             with open('Application.mk') as f:
                 app_mk = f.read()
 
@@ -419,11 +419,23 @@ class NdkBuild(Command):
             for line in app_mk.split("\n"):
                 if re.match(r'APP_ABI\s*:=\s*.+', line):
                     line = 'APP_ABI := {}'.format(" ".join(arches))
+                new_mk.append(line)
+
+            with open('Application.mk', 'w') as f:
+                f.write("\n".join(new_mk))
+
+            #: Patch Android.mk to have the correct python version
+            with open('Android.mk') as f:
+                android_mk = f.read()
+
+            #: PY_LIB_VER := 2.7
+            new_mk = []
+            for line in android_mk.split("\n"):
                 if re.match(r'PY_LIB_VER\s*:=\s*.+', line):
                     line = 'PY_LIB_VER := {}'.format(py_version)
                 new_mk.append(line)
 
-            with open('Application.mk', 'w') as f:
+            with open('Android.mk', 'w') as f:
                 f.write("\n".join(new_mk))
 
             #: Now run nkd-build

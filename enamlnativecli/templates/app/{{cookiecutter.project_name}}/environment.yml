@@ -7,7 +7,7 @@ channels:
 
 # App dependencies to be installed
 dependencies:
-  - python<3
+  - python
   - enaml-native
 
 # Exclude unused packages and libs using glob patterns here.
