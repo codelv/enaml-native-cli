@@ -1679,6 +1679,12 @@ class EnamlNativeCli(Atom):
         """ Run the commands"""
         self.check_dependencies()
         self.args = self.parser.parse_args()
+
+        # Python 3 doesn't set the cmd if no args are given
+        if not hasattr(self.args, 'cmd'):
+            self.parser.print_help()
+            return
+
         cmd = self.args.cmd
         try:
             if cmd.app_dir_required and not self.in_app_directory:

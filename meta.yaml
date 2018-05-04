@@ -1,6 +1,6 @@
 package:
   name: enaml-native-cli
-  version: 2.2.5
+  version: 2.2.6
 
 # On linux you must apt install build-essential autopoint texinfo
 requirements:

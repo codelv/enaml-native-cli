@@ -1,3 +1,7 @@
+# 2.2.6
+
+- Show help when no args are given on Python 3
+
 # 2.2.5
 
 - Fix bug where python 3 is trying to use ndk-build on 2.7
