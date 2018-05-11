@@ -1658,8 +1658,12 @@ class EnamlNativeCli(Atom):
         return parser
 
     def _default_conda(self):
-        miniconda2 = expanduser(join('~', 'miniconda2', 'bin', 'conda'))
-        miniconda3 = expanduser(join('~', 'miniconda3', 'bin', 'conda'))
+        if 'win' in sys.platform:
+            miniconda2 = join(os.getenv('PROGRAMDATA'),'miniconda2','scripts','conda.exe')
+            miniconda3 = join(os.getenv('PROGRAMDATA'),'miniconda3','scripts','conda.exe')
+        else:
+            miniconda2 = expanduser(join('~', 'miniconda2', 'bin', 'conda'))
+            miniconda3 = expanduser(join('~', 'miniconda3', 'bin', 'conda'))
         if exists(miniconda2):
             return sh.Command(miniconda2)
         if exists(miniconda3):
