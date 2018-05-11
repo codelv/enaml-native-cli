@@ -46,6 +46,12 @@ if 'win' in sys.platform:
                 return getattr(pbs, attr)
             return pbs.Command(attr)
     sh = Sh()
+    
+    adb = join(os.getenv('LOCALAPPDATA'),'Android','Sdk','platform-tools','adb.exe')
+    if exists(adb):
+        sh.adb = adb
+    else:
+        raise EnvironmentError("Couldn't find a adb in your System, Make sure android studio is installed")
 else:
     import sh
 
