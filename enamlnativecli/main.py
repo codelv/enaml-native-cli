@@ -48,10 +48,16 @@ if 'win' in sys.platform:
     sh = Sh()
     
     adb = join(os.getenv('LOCALAPPDATA'),'Android','Sdk','platform-tools','adb.exe')
+    emulator = join(os.getenv('LOCALAPPDATA'),'Android','Sdk','emulator','emulator.exe')
+
     if exists(adb):
-        sh.adb = adb
+        sh.adb = sh.Command(adb)
     else:
         raise EnvironmentError("Couldn't find a adb in your System, Make sure android studio is installed")
+    if exists(emulator):
+        sh.emulator = sh.Command(emulator)
+    else:
+        raise EnvironmentError("Couldn't find a emulator in your System, Make sure android studio is installed")
 else:
     import sh
 
@@ -110,7 +116,7 @@ def shprint(cmd, *args, **kwargs):
         kwargs['_bg'] = True
         process = cmd(*args, **kwargs).process
         for c in iter(lambda: process.stdout.read(1),''):
-            write(c)
+            write(c.decode('utf-8'))
             if c in ['\r', '\n']:
                 flush()
         process.wait()
@@ -1224,13 +1230,17 @@ class RunAndroid(Command):
     def run(self, args=None):
         ctx = self.ctx
         bundle_id = ctx['bundle_id']
+        
         with cd("android"):
             release_apk = os.path.abspath(join(
                 '.', 'app', 'build', 'outputs', 'apk',
                 'app-release-unsigned.apk'))
-            gradlew = sh.Command('./gradlew')
-
-            #: If no devices are connected, start the simulator
+            if 'win' in sys.platform:
+                gradlew = sh.Command('gradlew.bat')
+            else:
+                gradlew = sh.Command('./gradlew')
+        
+            #: If no devices are connected, start the simulator            
             if len(sh.adb('devices').stdout.strip())==1:
                 device = sh.emulator('-list-avds').stdout.split("\n")[0]
                 shprint(sh.emulator, '-avd', device)
