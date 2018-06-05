@@ -22,7 +22,7 @@ def find_data(folder):
 
 setup(
     name="enaml-native-cli",
-    version="2.2.7",
+    version="2.2.8",
     author="CodeLV",
     author_email="frmdstryr@gmail.com",
     license='GPLv3',
@@ -31,6 +31,7 @@ setup(
     entry_points={'console_scripts': [
         'enaml-native = enamlnativecli.main:main']},
     long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     packages=find_packages(),
     package_data={'': find_data('enamlnativecli')},
     include_package_data=True,

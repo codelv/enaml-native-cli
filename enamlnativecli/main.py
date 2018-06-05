@@ -64,6 +64,38 @@ else:
     import sh
 
 
+def find_conda():
+    """ Try to find conda on the system """
+    USER_HOME = os.path.expanduser('~')
+    CONDA_HOME = os.environ.get('CONDA_HOME', '')
+    PROGRAMDATA = os.environ.get('PROGRAMDATA', '')
+
+    # Search common install paths and sys path
+    search_paths = [
+        # Windows
+        join(PROGRAMDATA, 'miniconda2', 'scripts'),
+        join(PROGRAMDATA, 'miniconda3', 'scripts'),
+        join(USER_HOME, 'miniconda2', 'scripts'),
+        join(USER_HOME, 'miniconda3', 'scripts'),
+        join(CONDA_HOME, 'scripts'),
+
+        # Linux
+        join(USER_HOME, 'miniconda2', 'bin'),
+        join(USER_HOME, 'miniconda3', 'bin'),
+        join(CONDA_HOME, 'bin'),
+        # TODO: OSX
+    ] + os.environ.get("PATH", "").split(";" if 'win' in sys.path else ":")
+
+    cmd = 'conda.exe' if 'win' in sys.platform else 'conda'
+    for conda_path in search_paths:
+        conda = join(conda_path, cmd)
+        if exists(conda):
+            return sh.Command(conda)
+
+    # Try to let the system find it
+    return sh.conda
+
+
 class Colors:
     RED = "\033[1;31m"
     BLUE = "\033[1;34m"
@@ -1676,36 +1708,7 @@ class EnamlNativeCli(Atom):
         return parser
 
     def _default_conda(self):
-        """ Try to find conda on the system """
-        USER_HOME = os.path.expanduser('~')
-        CONDA_HOME = os.environ.get('CONDA_HOME', '')
-        PROGRAMDATA = os.environ.get('PROGRAMDATA', '')
-
-        # Search common install paths and sys path
-        search_paths = [
-            # Windows
-            join(PROGRAMDATA, 'miniconda2', 'scripts'),
-            join(PROGRAMDATA, 'miniconda3', 'scripts'),
-            join(USER_HOME, 'miniconda2', 'scripts'),
-            join(USER_HOME, 'miniconda3', 'scripts'),
-            join(CONDA_HOME, 'scripts'),
-
-            # Linux
-            join(USER_HOME, 'miniconda2', 'bin'),
-            join(USER_HOME, 'miniconda3', 'bin'),
-            join(CONDA_HOME, 'bin'),
-
-            # TODO: OSX
-        ] + os.environ.get("PATH", "").split(";" if 'win' in sys.path else ":")
-
-        cmd = 'conda.exe' if 'win' in sys.platform else 'conda'
-        for conda_path in search_paths:
-            conda = join(conda_path, cmd)
-            if exists(conda):
-                return sh.Command(conda)
-
-        # Try to let the system find it
-        return sh.conda
+        return find_conda()
 
     def check_dependencies(self):
         try:
