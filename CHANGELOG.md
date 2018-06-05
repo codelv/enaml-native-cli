@@ -1,3 +1,8 @@
+# 2.2.7
+
+- Leave multiprocessing in by default
+- Support windows better
+
 # 2.2.6
 
 - Show help when no args are given on Python 3

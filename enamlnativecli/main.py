@@ -46,18 +46,20 @@ if 'win' in sys.platform:
                 return getattr(pbs, attr)
             return pbs.Command(attr)
     sh = Sh()
-    
-    adb = join(os.getenv('LOCALAPPDATA'),'Android','Sdk','platform-tools','adb.exe')
-    emulator = join(os.getenv('LOCALAPPDATA'),'Android','Sdk','emulator','emulator.exe')
+    ANDROID_SDK = join(os.environ.get('LOCALAPPDATA', ''), 'Android', 'Sdk')
+    adb = join(ANDROID_SDK, 'platform-tools', 'adb.exe')
+    emulator = join(ANDROID_SDK, 'emulator', 'emulator.exe')
 
     if exists(adb):
         sh.adb = sh.Command(adb)
     else:
-        raise EnvironmentError("Couldn't find a adb in your System, Make sure android studio is installed")
+        raise EnvironmentError("Couldn't find a adb in your System, "
+                               "Make sure android studio is installed")
     if exists(emulator):
         sh.emulator = sh.Command(emulator)
     else:
-        raise EnvironmentError("Couldn't find a emulator in your System, Make sure android studio is installed")
+        raise EnvironmentError("Couldn't find a emulator in your System, "
+                               "Make sure android studio is installed")
 else:
     import sh
 
@@ -1674,16 +1676,35 @@ class EnamlNativeCli(Atom):
         return parser
 
     def _default_conda(self):
-        if 'win' in sys.platform:
-            miniconda2 = join(os.getenv('PROGRAMDATA'),'miniconda2','scripts','conda.exe')
-            miniconda3 = join(os.getenv('PROGRAMDATA'),'miniconda3','scripts','conda.exe')
-        else:
-            miniconda2 = expanduser(join('~', 'miniconda2', 'bin', 'conda'))
-            miniconda3 = expanduser(join('~', 'miniconda3', 'bin', 'conda'))
-        if exists(miniconda2):
-            return sh.Command(miniconda2)
-        if exists(miniconda3):
-            return sh.Command(miniconda3)
+        """ Try to find conda on the system """
+        USER_HOME = os.path.expanduser('~')
+        CONDA_HOME = os.environ.get('CONDA_HOME', '')
+        PROGRAMDATA = os.environ.get('PROGRAMDATA', '')
+
+        # Search common install paths and sys path
+        search_paths = [
+            # Windows
+            join(PROGRAMDATA, 'miniconda2', 'scripts'),
+            join(PROGRAMDATA, 'miniconda3', 'scripts'),
+            join(USER_HOME, 'miniconda2', 'scripts'),
+            join(USER_HOME, 'miniconda3', 'scripts'),
+            join(CONDA_HOME, 'scripts'),
+
+            # Linux
+            join(USER_HOME, 'miniconda2', 'bin'),
+            join(USER_HOME, 'miniconda3', 'bin'),
+            join(CONDA_HOME, 'bin'),
+
+            # TODO: OSX
+        ] + os.environ.get("PATH", "").split(";" if 'win' in sys.path else ":")
+
+        cmd = 'conda.exe' if 'win' in sys.platform else 'conda'
+        for conda_path in search_paths:
+            conda = join(conda_path, cmd)
+            if exists(conda):
+                return sh.Command(conda)
+
+        # Try to let the system find it
         return sh.conda
 
     def check_dependencies(self):
