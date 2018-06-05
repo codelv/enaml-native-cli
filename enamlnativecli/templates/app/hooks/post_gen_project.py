@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
-from enamlnativecli import find_conda
+from enamlnativecli.main import find_conda
 
 # Find conda on the system
 conda = find_conda()
