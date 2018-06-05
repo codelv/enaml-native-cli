@@ -429,9 +429,16 @@ class NdkBuild(Command):
     def run(self, args=None):
         ctx = self.ctx
         env = ctx['android']
-
         # Lib version
-        py_version = '2.7' if sys.version_info.major < 3 else '3.6m'
+        build_ver = sys.version_info.major
+        for line in self.cli.conda('list').split("\n"):
+            print(line)
+            if 'android-python' in line:
+                build_ver = 2 if 'py27' in line else 3
+                break
+        py_version = '2.7' if build_ver == 2 else '3.6m'
+        print(Colors.GREEN+"[DEBUG] Building for {}".format(
+              py_version)+Colors.RESET)
 
         ndk_build = sh.Command(os.path.expanduser(join(env['ndk'],
                                                        'ndk-build')))
@@ -703,7 +710,7 @@ class ListPackages(Command):
     app_dir_required = set_default(False)
 
     def run(self, args):
-        shprint(sh.conda, 'list')
+        shprint(self.cli.conda, 'list')
 
 
 class Install(Command):
@@ -725,7 +732,7 @@ class Install(Command):
             print(Colors.RED+'enaml-native install should only be used'
                              'within an app env!'+Colors.RESET)
             raise SystemExit(0)
-        shprint(sh.conda, 'install', '-y', *args.args)
+        shprint(self.cli.conda, 'install', '-y', *args.args)
 
         #: Link everything for now
         self.cmds['link'].run()
@@ -754,7 +761,7 @@ class Uninstall(Command):
         if hasattr(args, 'names'):
             # TODO...
             self.cmds['unlink'].run(args)
-        shprint(sh.conda, 'uninstall', '-y', *args.args)
+        shprint(self.cli.conda, 'uninstall', '-y', *args.args)
 
 
 class Link(Command):
