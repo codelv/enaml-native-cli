@@ -155,6 +155,8 @@ def shprint(cmd, *args, **kwargs):
             write(c.decode('utf-8'))
             if c in ['\r', '\n']:
                 flush()
+            if not c:
+                break
         process.wait()
         return
 
