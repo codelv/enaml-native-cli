@@ -36,8 +36,10 @@ try:
 except:
     from configparser import ConfigParser
 
+IS_WIN = if 'win' in sys.platform
+
 # sh does not work on windows
-if 'win' in sys.platform:
+if IS_WIN:
     import pbs
 
     class Sh(object):
@@ -86,7 +88,7 @@ def find_conda():
         # TODO: OSX
     ] + os.environ.get("PATH", "").split(";" if 'win' in sys.path else ":")
 
-    cmd = 'conda.exe' if 'win' in sys.platform else 'conda'
+    cmd = 'conda.exe' if IS_WIN else 'conda'
     for conda_path in search_paths:
         conda = join(conda_path, cmd)
         if exists(conda):
@@ -144,7 +146,7 @@ def shprint(cmd, *args, **kwargs):
                                     not isinstance(a, sh.RunningCommand)
                                     ]), Colors.RESET))
 
-    if 'win' in sys.platform:
+    if IS_WIN:
         kwargs.pop('_out_bufsize')
         kwargs.pop('_iter')
         kwargs['_bg'] = True
@@ -412,8 +414,10 @@ class NdkStack(Command):
     def run(self, args=None):
         ctx = self.ctx
         env = ctx['android']
-        ndk_stack = sh.Command(os.path.expanduser(join(env['ndk'],
-                                                       'ndk-stack')))
+        ndk_stack = sh.Command(join(
+            os.path.expanduser(env['ndk']), 
+            'ndk-stack.cmd' if IS_WIN else 'ndk-stack'
+        ))
         arch = args.arch if args else 'armeabi-v7a'
         sym = 'venv/android/enaml-native/src/main/obj/local/{}'.format(arch)
         shprint(ndk_stack, sh.adb('logcat', _piped=True), '-sym', sym)
@@ -440,8 +444,10 @@ class NdkBuild(Command):
         print(Colors.GREEN+"[DEBUG] Building for {}".format(
               py_version)+Colors.RESET)
 
-        ndk_build = sh.Command(os.path.expanduser(join(env['ndk'],
-                                                       'ndk-build')))
+        ndk_build = sh.Command(join(
+            os.path.expanduser(env['ndk']), 
+            'ndk-build.cmd' if IS_WIN else 'ndk-build'
+        ))
         arches = [ANDROID_TARGETS[arch] for arch in env['targets']]
 
         #: Where the jni files are
@@ -1243,7 +1249,7 @@ class BuildAndroid(Command):
 
     def run(self, args=None):
         with cd("android"):
-            gradlew = sh.Command('./gradlew')
+            gradlew = sh.Command('gradlew.bat' if IS_WIN else './gradlew')
             if args and args.release:
                 shprint(gradlew, 'assembleRelease', *args.extra, _debug=True)
             else:
@@ -1256,7 +1262,7 @@ class CleanAndroid(Command):
 
     def run(self, args=None):
         with cd('android'):
-            gradlew = sh.Command('./gradlew')
+            gradlew = sh.Command('gradlew.bat' if IS_WIN else './gradlew')
             shprint(gradlew, 'clean', _debug=True)
 
 
@@ -1276,11 +1282,7 @@ class RunAndroid(Command):
             release_apk = os.path.abspath(join(
                 '.', 'app', 'build', 'outputs', 'apk',
                 'app-release-unsigned.apk'))
-            if 'win' in sys.platform:
-                gradlew = sh.Command('gradlew.bat')
-            else:
-                gradlew = sh.Command('./gradlew')
-        
+            gradlew = sh.Command('gradlew.bat' if IS_WIN else './gradlew')
             #: If no devices are connected, start the simulator            
             if len(sh.adb('devices').stdout.strip())==1:
                 device = sh.emulator('-list-avds').stdout.split("\n")[0]

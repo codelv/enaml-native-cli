@@ -1,7 +1,7 @@
-# 2.2.7-2.2.9
+# 2.2.7-2.2.11
 
 - Leave multiprocessing in by default
-- Support windows better
+- Fix building on windows
 
 # 2.2.6
 
