@@ -441,8 +441,11 @@ class NdkBuild(Command):
             print(line)
             if 'android-python' in line:
                 build_ver = 2 if 'py27' in line else 3
+                py_version = ".".join(line.split()[1].split(".")[:2])
+                if build_ver > 2:
+                    py_version += 'm'
                 break
-        py_version = '2.7' if build_ver == 2 else '3.6m'
+        
         print(Colors.GREEN+"[DEBUG] Building for {}".format(
               py_version)+Colors.RESET)
 
