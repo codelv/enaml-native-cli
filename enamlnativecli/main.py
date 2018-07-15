@@ -36,7 +36,7 @@ try:
 except:
     from configparser import ConfigParser
 
-IS_WIN = 'win' in sys.platform
+IS_WIN = 'win' in sys.platform and not 'darwin' == sys.platform
 
 # sh does not work on windows
 if IS_WIN:
