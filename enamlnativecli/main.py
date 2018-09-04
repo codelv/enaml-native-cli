@@ -19,7 +19,6 @@ import shutil
 import tarfile
 import fnmatch
 import compileall
-from ruamel import yaml
 import pkg_resources
 from glob import glob
 from os.path import join, exists, abspath, expanduser, realpath, dirname
@@ -31,6 +30,12 @@ from cookiecutter.main import cookiecutter
 from cookiecutter.log import configure_logger
 from distutils.dir_util import copy_tree
 
+try:
+    # Try conda's version
+    import ruamel_yaml as yaml
+except:
+    from ruamel import yaml
+    
 try:
     from ConfigParser import ConfigParser
 except:
