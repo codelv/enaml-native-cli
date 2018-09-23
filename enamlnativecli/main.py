@@ -1687,11 +1687,11 @@ class EnamlNativeCli(Atom):
 
         else:
             with open(self.package) as f:
-                ctx = yaml.load(f, Loader=yaml.RoundTripLoader)
+                ctx = dict(yaml.load(f, Loader=yaml.RoundTripLoader))
 
         if self.in_app_directory:
             # Update the env for each platform
-            excluded = ctx.get('excluded', [])
+            excluded = list(ctx.get('excluded', []))
 
             for env in [ctx['ios'], ctx['android']]:
                 if 'python_build_dir' not in env:
@@ -1701,7 +1701,7 @@ class EnamlNativeCli(Atom):
                         'CONDA_PREFIX', expanduser(abspath('venv')))
 
                 # Join the shared and local exclusions
-                env['excluded'] = env.get('excluded', []) + excluded
+                env['excluded'] = list(env.get('excluded', [])) + excluded
 
         return ctx
 
