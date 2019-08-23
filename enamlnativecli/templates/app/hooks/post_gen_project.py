@@ -16,7 +16,8 @@ else:
         sys.stdout.flush()
 
 
-p = conda('create', '-p', 'venv', '-c', 'codelv', '--use-local', '--yes',
-          'python={{cookiecutter.python_version}}', 'enaml-native', _bg=True,
-          _err_to_out=True, _out=process, **kw)
+p = conda('env', 'create',
+          '--prefix', 'venv',
+          '--file', 'environment.yml',
+          _bg=True, _err_to_out=True, _out=process, **kw)
 p.wait()

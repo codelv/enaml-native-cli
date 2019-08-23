@@ -35,7 +35,7 @@ try:
     import ruamel_yaml as yaml
 except:
     from ruamel import yaml
-    
+
 try:
     from ConfigParser import ConfigParser
 except:
@@ -252,8 +252,10 @@ class Create(Command):
             stream_level='DEBUG' if args.verbose else 'INFO',
             debug_file=None,
         )
+
         cookiecutter(template,
                      no_input=args.no_input,
+                     extra_context={'user_home': os.path.expanduser('~')},
                      overwrite_if_exists=args.overwrite_if_exists)
         print(Colors.GREEN+"[INFO] {} created successfully!".format(
               args.what.title())+Colors.RESET)
@@ -294,7 +296,7 @@ class MakePipRecipe(Command):
 
     #: Can be run from anywhere
     app_dir_required = set_default(False)
-    
+
     #: Recipes built
     _built = List()
 
@@ -406,9 +408,9 @@ class MakePipRecipe(Command):
 
 
 class NdkStack(Command):
-    """ Shortcut to run ndk-stack to show debugging output of a crash in a 
+    """ Shortcut to run ndk-stack to show debugging output of a crash in a
     native library.
-    
+
     See https://developer.android.com/ndk/guides/ndk-stack.html
     """
     title = set_default("ndk-stack")
@@ -422,7 +424,7 @@ class NdkStack(Command):
         ctx = self.ctx
         env = ctx['android']
         ndk_stack = sh.Command(join(
-            os.path.expanduser(env['ndk']), 
+            os.path.expanduser(env['ndk']),
             'ndk-stack.cmd' if IS_WIN else 'ndk-stack'
         ))
         arch = args.arch if args else 'armeabi-v7a'
@@ -450,12 +452,12 @@ class NdkBuild(Command):
                 if build_ver > 2:
                     py_version += 'm'
                 break
-        
+
         print(Colors.GREEN+"[DEBUG] Building for {}".format(
               py_version)+Colors.RESET)
 
         ndk_build = sh.Command(join(
-            os.path.expanduser(env['ndk']), 
+            os.path.expanduser(env['ndk']),
             'ndk-build.cmd' if IS_WIN else 'ndk-build'
         ))
         arches = [ANDROID_TARGETS[arch] for arch in env['targets']]
@@ -730,9 +732,9 @@ class ListPackages(Command):
 
 
 class Install(Command):
-    """ The "Install" command does a `conda install` of the package names given 
+    """ The "Install" command does a `conda install` of the package names given
     and then runs the linker command.
-      
+
     """
     title = set_default("install")
     help = set_default("Install and link an enaml-native package")
@@ -755,8 +757,8 @@ class Install(Command):
 
 
 class Uninstall(Command):
-    """ The "Uninstall" command unlinks the package (if needed) and does a 
-    `conda uninstall` of the package names given. 
+    """ The "Uninstall" command unlinks the package (if needed) and does a
+    `conda uninstall` of the package names given.
 
     """
     title = set_default("uninstall")
@@ -783,19 +785,19 @@ class Uninstall(Command):
 class Link(Command):
     """ The "Link" command tries to modify the android and ios projects
     to include all of the necessary changes for this package to work.
-      
-    A custom linkiner can be used by adding a "enaml_native_linker" 
-    entry_point which shall be a function that receives the app package.json 
-    (context) an argument. 
-    
+
+    A custom linkiner can be used by adding a "enaml_native_linker"
+    entry_point which shall be a function that receives the app package.json
+    (context) an argument.
+
     Example
     ----------
-    
+
     def linker(ctx):
         # Link android and ios projects here
-        return True #: To tell the cli the linking was handled and should 
+        return True #: To tell the cli the linking was handled and should
         return
-    
+
     """
     title = set_default("link")
     help = set_default("Link an enaml-native package "
@@ -847,7 +849,7 @@ class Link(Command):
 
     @staticmethod
     def is_settings_linked(source, pkg):
-        """ Returns true if the "include ':<project>'" line exists in the file 
+        """ Returns true if the "include ':<project>'" line exists in the file
         """
         for line in source.split("\n"):
             if re.search(r"include\s*['\"]:{}['\"]".format(pkg), line):
@@ -882,8 +884,8 @@ class Link(Command):
 
     @staticmethod
     def is_app_linked(source, pkg, java_package):
-        """ Returns true if the compile project line exists exists in the file 
-        
+        """ Returns true if the compile project line exists exists in the file
+
         """
         for line in source.split("\n"):
             if java_package in line:
@@ -893,7 +895,7 @@ class Link(Command):
     def link_android(self, path, pkg):
         """ Link's the android project to this library.
 
-        1. Includes this project's directory in the app's 
+        1. Includes this project's directory in the app's
             android/settings.gradle
             It adds:
                 include ':<project-name>'
@@ -1048,21 +1050,21 @@ class Link(Command):
 
 
 class Unlink(Command):
-    """ The "Unlink" command tries to undo the modifications done by the 
+    """ The "Unlink" command tries to undo the modifications done by the
     linker..
-          
-    A custom unlinkiner can be used by adding a "enaml_native_unlinker" 
-    entry_point which shall be a function that receives the app 
-    package.json (context) an argument. 
-    
+
+    A custom unlinkiner can be used by adding a "enaml_native_unlinker"
+    entry_point which shall be a function that receives the app
+    package.json (context) an argument.
+
     Example
     ----------
-    
+
     def unlinker(ctx):
         # Unlink android and ios projects here
-        return True #: To tell the cli the unlinking was handled and 
+        return True #: To tell the cli the unlinking was handled and
         should return
-    
+
     """
     title = set_default("unlink")
     help = set_default("Unlink an enaml-native package")
@@ -1102,26 +1104,26 @@ class Unlink(Command):
     def unlink_android(self, path, pkg):
         """ Unlink's the android project to this library.
 
-            1. In the app's android/settings.gradle, it removes the following 
+            1. In the app's android/settings.gradle, it removes the following
             lines (if they exist):
                     include ':<project-name>'
                     project(':<project-name>').projectDir = new File(
-                    rootProject.projectDir, 
+                    rootProject.projectDir,
                         '../venv/packages/<project-name>/android')
 
-            2. In the app's android/app/build.gradle, it removes the following 
+            2. In the app's android/app/build.gradle, it removes the following
             line (if present)
                     compile project(':<project-name>')
 
             3. In the app's
-             android/app/src/main/java/<bundle/id>/MainApplication.java, 
+             android/app/src/main/java/<bundle/id>/MainApplication.java,
              it removes:
                     import <package>.<Name>Package;
-                     new <Name>Package(), 
-                     
-                  If no comma exists it will remove the comma from the previous 
+                     new <Name>Package(),
+
+                  If no comma exists it will remove the comma from the previous
                   line.
-                    
+
         """
         bundle_id = self.ctx['bundle_id']
 
@@ -1287,13 +1289,13 @@ class RunAndroid(Command):
     def run(self, args=None):
         ctx = self.ctx
         bundle_id = ctx['bundle_id']
-        
+
         with cd("android"):
             release_apk = os.path.abspath(join(
                 '.', 'app', 'build', 'outputs', 'apk',
                 'app-release-unsigned.apk'))
             gradlew = sh.Command('gradlew.bat' if IS_WIN else './gradlew')
-            #: If no devices are connected, start the simulator            
+            #: If no devices are connected, start the simulator
             if len(sh.adb('devices').stdout.strip())==1:
                 device = sh.emulator('-list-avds').stdout.split("\n")[0]
                 shprint(sh.emulator, '-avd', device)
@@ -1373,9 +1375,9 @@ class BuildIOS(Command):
 
 
 class Server(Command):
-    """ Run a dev server to host files. Only view files can be reloaded at the 
-    moment. 
-    
+    """ Run a dev server to host files. Only view files can be reloaded at the
+    moment.
+
     """
     title = set_default("start")
     help = set_default("Start a debug server for serving files to the app")
@@ -1569,7 +1571,7 @@ class Server(Command):
     def send_message(self, msg):
         """ Send a message to the client. This should not be used in
         remote debugging mode.
-        
+
         """
         if not self.handlers:
             return  #: Client not connected
@@ -1646,10 +1648,10 @@ class EnamlNativeCli(Atom):
     commands = List(Command)
 
     def _default_commands(self):
-        """ Build the list of CLI commands by finding subclasses of the Command 
+        """ Build the list of CLI commands by finding subclasses of the Command
         class
 
-        Also allows commands to be installed using the "enaml_native_command" 
+        Also allows commands to be installed using the "enaml_native_command"
         entry point. This entry point should return a Command subclass
 
         """
@@ -1668,17 +1670,17 @@ class EnamlNativeCli(Atom):
         return commands
 
     def _default_in_app_directory(self):
-        """ Return if we are in a directory that contains the package.json file 
+        """ Return if we are in a directory that contains the package.json file
         which should indicate it's in the root directory of an enaml-native
         app.
-        
+
         """
         return exists(self.package)
 
     def _default_ctx(self):
-        """ Return the package config or context and normalize some of the 
-        values 
-        
+        """ Return the package config or context and normalize some of the
+        values
+
         """
         if not self.in_app_directory:
             print("Warning: {} does not exist. Using the default.".format(

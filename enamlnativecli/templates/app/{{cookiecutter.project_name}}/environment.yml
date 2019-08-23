@@ -1,3 +1,4 @@
+# Name
 name: {{cookiecutter.project_name.lower()}}
 bundle_id: {{cookiecutter.bundle_id}}
 
@@ -7,8 +8,13 @@ channels:
 
 # App dependencies to be installed
 dependencies:
-  - python
+  - python={{cookiecutter.python_version}}
+  - pip
+  - android-python * py{{ cookiecutter.python_version.replace('.', '') }}*
   - enaml-native
+  - pip:
+    - enaml-native-cli
+
 
 # Exclude unused packages and libs using glob patterns here.
 # Only the ones required by enaml-native are left in by default.
@@ -32,7 +38,6 @@ excluded:
   - lib._element*
   - lib.cmath.so
   - lib.termios.so
-  - lib._multi*
   - lib.mmap*
   - lib._hotshot.so
   - lib._ssl.so
@@ -41,6 +46,7 @@ excluded:
   - lib.strop.so
   - lib.syslog.so
   - lib.enaml.*ext.so
+  #- lib._multi*
   #- lib._md5.so
   #- lib._sha*.so
   #- lib._json.so
@@ -49,6 +55,7 @@ excluded:
 
 # Android specific configuration
 android:
+  sdk: {{cookiecutter.android_sdk}}
   ndk: {{cookiecutter.android_ndk}}
   targets:
     - x86_64

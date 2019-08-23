@@ -22,7 +22,7 @@ def find_data(folder):
 
 setup(
     name="enaml-native-cli",
-    version="2.2.18",
+    version="2.3.0",
     author="CodeLV",
     author_email="frmdstryr@gmail.com",
     license='GPLv3',
