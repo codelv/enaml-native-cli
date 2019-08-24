@@ -739,7 +739,9 @@ class Install(Command):
     title = set_default("install")
     help = set_default("Install and link an enaml-native package")
     args = set_default([
-        ('args', dict(nargs=REMAINDER, help="Alias to conda install")),
+        ('args', dict(nargs='*',
+                      help="Args to pass to conda install. " \
+                           "If blank it uses the environment.yml file")),
     ])
 
     #: Can be run from anywhere
@@ -750,7 +752,12 @@ class Install(Command):
             print(Colors.RED+'enaml-native install should only be used'
                              'within an app env!'+Colors.RESET)
             raise SystemExit(0)
-        shprint(self.cli.conda, 'install', '-y', *args.args)
+        if not args.args:
+            # Update from the env file
+            shprint(self.cli.conda, 'env', 'update', '-f',
+                    'environment.yml', '--prune')
+        else:
+            shprint(self.cli.conda, 'install', '-y', *args.args)
 
         #: Link everything for now
         self.cmds['link'].run()

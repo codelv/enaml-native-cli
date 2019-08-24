@@ -109,3 +109,8 @@ android/app/build/
 *.pyo
 *.enamlc
 
+*.kate-swp
+.directory
+tmp/
+record.txt
+*.kdev4

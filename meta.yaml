@@ -1,6 +1,9 @@
 package:
   name: enaml-native-cli
-  version: 2.2.18
+  version: 2.3.1
+
+channels:
+ - conda-forge
 
 # On linux you must apt install build-essential autopoint texinfo
 requirements:
