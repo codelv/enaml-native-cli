@@ -26,7 +26,7 @@ p.wait()
 data = json.loads(str(conda('env', 'list', '--json')))
 
 # Create a symlink from app/venv folder to the conda env
-env_name = '{{ cookiecutter.app_name.lower() }}'
+env_name = '{{ cookiecutter.project_name.lower().replace(" ", "") }}'
 for path in data['envs']:
     if os.path.split(path)[-1] == env_name:
         os.symlink(path ,'venv')
