@@ -1301,7 +1301,13 @@ class RunAndroid(Command):
             release_apk = os.path.abspath(join(
                 '.', 'app', 'build', 'outputs', 'apk',
                 'app-release-unsigned.apk'))
-            gradlew = sh.Command('gradlew.bat' if IS_WIN else './gradlew')
+            #: Fix permissions for running gradlew in mac / linux
+            if IS_WIN:
+                gradlew = sh.Command('gradlew.bat')
+            else:
+                gradlew = sh.Command('chmod 755 gradlew')
+                gradlew = sh.Command('./gradlew')
+            #gradlew = sh.Command('gradlew.bat' if IS_WIN else './gradlew')
             #: If no devices are connected, start the simulator
             if len(sh.adb('devices').stdout.strip())==1:
                 device = sh.emulator('-list-avds').stdout.split("\n")[0]
