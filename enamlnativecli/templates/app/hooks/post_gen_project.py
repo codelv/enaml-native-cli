@@ -8,7 +8,8 @@ from enamlnativecli.main import find_conda
 conda = find_conda()
 kw = {}
 
-if 'win' in sys.platform:
+IS_WIN = 'win32' in sys.platform
+if IS_WIN:
     process = sys.stdout
 else:
     kw['_out_bufsize'] = 0
@@ -23,7 +24,8 @@ p = conda('env', 'create', '--file', 'environment.yml',
 p.wait()
 
 # Find the env
-data = json.loads(str(conda('env', 'list', '--json')))
+output = conda('env', 'list', '--json')
+data = json.loads(str(output.stdout if IS_WIN else output))
 
 # Create a symlink from app/venv folder to the conda env
 env_name = '{{ cookiecutter.project_name.lower().replace(" ", "") }}'
