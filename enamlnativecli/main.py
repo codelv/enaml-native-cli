@@ -23,7 +23,7 @@ import pkg_resources
 from glob import glob
 from os.path import join, exists, abspath, expanduser, realpath, dirname
 from argparse import ArgumentParser, Namespace, REMAINDER
-from atom.api import (Atom, Bool, Callable, Dict, List, Unicode, Float, Int,
+from atom.api import (Atom, Bool, Callable, Dict, List, Str, Float, Int,
                       Instance, set_default)
 from contextlib import contextmanager
 from cookiecutter.main import cookiecutter
@@ -196,13 +196,13 @@ ANDROID_TARGETS = {v: k for k, v in ANDROID_ABIS.items()}
 class Command(Atom):
     _instance = None
     #: Subcommand name ex enaml-native <name>
-    title = Unicode()
+    title = Str()
 
     #: Subcommand short description
-    desc = Unicode()
+    desc = Str()
 
     #: Subcommand help text
-    help = Unicode()
+    help = Str()
 
     #: Package context used to retrieve app config and env
     ctx = Dict()
@@ -1395,7 +1395,7 @@ class Server(Command):
     title = set_default("start")
     help = set_default("Start a debug server for serving files to the app")
     #: Dev server index page to render
-    index_page = Unicode("enaml-native dev server. "
+    index_page = Str("enaml-native dev server. "
                          "When you change a source file it pushes to the app.")
 
     args = set_default([
@@ -1649,7 +1649,7 @@ class EnamlNativeCli(Atom):
     args = Instance(Namespace)
 
     #: Location of package file
-    package = Unicode("environment.yml")
+    package = Str("environment.yml")
 
     #: If enaml-native is being run within an app directory
     in_app_directory = Bool()
