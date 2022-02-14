@@ -1,3 +1,9 @@
+# 2.3.2
+
+- Migrate to androidx support libraries
+- When a command requires an apps virtual env to be active show an error if
+it's not
+
 # 2.3.1
 
 Add support for using the environment.yml file to manage the dependencies.
@@ -10,6 +16,10 @@ run `enaml-native install` without any arguments.
 
 The environment also uses the app name so you can now use
 `conda activate <appname>` (all lowercase) instead of `./venv`.
+
+When removing an app you must either use `rm -Rl` to follow the link to the
+venv folder or manually remove the env created with
+`conda env remote -n <appname>`.
 
 
 # 2.3.0

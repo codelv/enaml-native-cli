@@ -4,12 +4,14 @@ bundle_id: {{cookiecutter.bundle_id}}
 
 # Channels to look for any specific libraries
 channels:
+  - local
   - codelv
 
 # App dependencies to be installed
 dependencies:
   - python={{cookiecutter.python_version}}
   - pip
+  - pip-tornado
   - android-python * py{{ cookiecutter.python_version.replace('.', '') }}*
   - enaml-native
   - pip:
@@ -29,6 +31,8 @@ excluded:
   - lib2to3
   - pydoc_data
   - hotshot
+  - turtledemo
+  - venv
   - site-packages/enaml/qt
   - site-packages/enaml/workbench
   - site-packages/enaml/*lib
