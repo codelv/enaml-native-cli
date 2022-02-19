@@ -6,22 +6,19 @@ Distributed under the terms of the {{cookiecutter.project_license}} License.
 The full license is in the file COPYING.txt, distributed with this software.
 
 """
-from atom.api import Typed, Instance, Dict, Bool, set_default
-
-from {{cookiecutter.project_package}}.widgets.{{cookiecutter.widget_module}} import (
-    Proxy{{cookiecutter.widget_name}}
-)
-from enamlnative.core import bridge
+from atom.api import Bool, Dict, Instance, Typed, set_default
 #from enamlnative.android.android_toolkit_object import AndroidToolkitObject
 from enamlnative.android.android_view import AndroidView
-from enamlnative.android.bridge import (
-    JavaBridgeObject, JavaMethod, JavaStaticMethod, JavaCallback, JavaProxy
-)
+from enamlnative.android.bridge import (JavaBridgeObject, JavaCallback,
+                                        JavaMethod, JavaProxy,
+                                        JavaStaticMethod)
+from enamlnative.core import bridge
+from {{cookiecutter.project_package}}.widgets.{{cookiecutter.widget_module}} import \
+    Proxy{{cookiecutter.widget_name}}
 
 
 class {{cookiecutter.widget_name}}(AndroidView):
-    __nativeclass__ = set_default(
-        '{{cookiecutter.bundle_id}}.{{cookiecutter.widget_name}}')
+    __nativeclass__ = '{{cookiecutter.bundle_id}}.{{cookiecutter.widget_name}}'
 
     # Add any JavaMethod, JavaCallbacks, etc.. that you want the native widget
     # to expose to be used in enaml-native.
@@ -48,7 +45,7 @@ class Android{{cookiecutter.widget_name}}(AndroidView, Proxy{{cookiecutter.widge
     def init_widget(self):
         """ Initialize the widget state. By default enamlnative will invoke
         set_<property> on any attribute defined in the enamldef block.
-        
+
         """
         super(Android{{cookiecutter.widget_name}}, self).init_widget()
 

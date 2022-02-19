@@ -11,34 +11,35 @@ Created on July 10, 2017
 
 @author: jrm
 """
+import compileall
+import fnmatch
+import json
 import os
 import re
-import sys
-import json
 import shutil
+import sys
 import tarfile
-import fnmatch
-import compileall
-import pkg_resources
+from argparse import REMAINDER, ArgumentParser, Namespace
+from contextlib import contextmanager
+from distutils.dir_util import copy_tree
 from glob import glob
-from os.path import join, exists, abspath, expanduser, realpath, dirname
-from argparse import ArgumentParser, Namespace, REMAINDER
+from os.path import abspath, dirname, exists, expanduser, join
+
+import pkg_resources
 from atom.api import (
     Atom,
     Bool,
     Callable,
     Dict,
+    Float,
+    Instance,
+    Int,
     List,
     Str,
-    Float,
-    Int,
-    Instance,
     set_default,
 )
-from contextlib import contextmanager
-from cookiecutter.main import cookiecutter
 from cookiecutter.log import configure_logger
-from distutils.dir_util import copy_tree
+from cookiecutter.main import cookiecutter
 
 try:
     # Try conda's version
@@ -46,10 +47,6 @@ try:
 except ImportError:
     from ruamel import yaml
 
-try:
-    from ConfigParser import ConfigParser
-except ImportError:
-    from configparser import ConfigParser
 
 IS_WIN = "win" in sys.platform and not "darwin" == sys.platform
 
@@ -84,6 +81,10 @@ if IS_WIN:
         )
 else:
     import sh
+
+
+def print_color(color, msg):
+    print(f"{color}{msg}{Colors.RESET}")
 
 
 def find_conda():
@@ -128,20 +129,20 @@ class Colors:
 
 
 @contextmanager
-def cd(newdir):
+def cd(newdir: str):
     prevdir = os.getcwd()
-    print("[DEBUG]:   -> running cd {}".format(newdir))
+    print(f"[DEBUG]:   -> running cd {newdir}")
     os.chdir(os.path.expanduser(newdir))
     try:
         yield
     finally:
-        print("[DEBUG]:   -> running  cd {}".format(prevdir))
+        print(f"[DEBUG]:   -> running  cd {prevdir}")
         os.chdir(prevdir)
 
 
-def cp(src, dst):
+def cp(src: str, dst: str):
     """Like cp -R src dst"""
-    print("[DEBUG]:   -> copying {} to {}".format(src, dst))
+    print(f"[DEBUG]:   -> copying {src} to {dst}")
     if os.path.isfile(src):
         if not exists(dirname(dst)):
             os.makedirs(dirname(dst))
@@ -156,14 +157,8 @@ def shprint(cmd, *args, **kwargs):
     write, flush = sys.stdout.write, sys.stdout.flush
     kwargs.update({"_err_to_out": True, "_out_bufsize": 0, "_iter": True})
 
-    print(
-        "{}[INFO]:   -> running  {} {}{}".format(
-            Colors.CYAN,
-            cmd,
-            " ".join([a for a in args if not isinstance(a, sh.RunningCommand)]),
-            Colors.RESET,
-        )
-    )
+    arg_list = " ".join([a for a in args if not isinstance(a, sh.RunningCommand)])
+    print_color(Colors.CYAN, f"[INFO]:   -> running  {cmd} {arg_list}")
 
     if IS_WIN:
         kwargs.pop("_out_bufsize")
@@ -279,7 +274,7 @@ class Create(Command):
             stream_level="DEBUG" if args.verbose else "INFO",
             debug_file=None,
         )
-        ndk_dir = os.path.expanduser('~/Android/Sdk/ndk/')
+        ndk_dir = os.path.expanduser("~/Android/Sdk/ndk/")
         ndks = [join(ndk_dir, it) for it in os.listdir(ndk_dir)]
         ndks.sort()
         cookiecutter(
@@ -292,11 +287,8 @@ class Create(Command):
             },
             overwrite_if_exists=args.overwrite_if_exists,
         )
-        print(
-            Colors.GREEN
-            + "[INFO] {} created successfully!".format(args.what.title())
-            + Colors.RESET
-        )
+        item = args.what.title()
+        print_color(Colors.GREEN, f"[INFO] {item} created successfully!")
 
 
 class BuildRecipe(Command):
@@ -318,11 +310,7 @@ class BuildRecipe(Command):
         if args.package.startswith("pip-"):
             env.update({"CC": "/bin/false", "CXX": "/bin/false"})
         shprint(self.cli.conda, "build", args.package, *args.args, _env=env)
-        print(
-            Colors.GREEN
-            + "[INFO] Built {} successfully!".format(args.package)
-            + Colors.RESET
-        )
+        print_color(Colors.GREEN, f"[INFO] Built {args.package} successfully!")
 
 
 class MakePipRecipe(Command):
@@ -356,10 +344,9 @@ class MakePipRecipe(Command):
 
     def run(self, args):
         self.build(args.package, args)
-        print(Colors.GREEN + "[INFO] Made successfully!" + Colors.RESET)
+        print_color(Colors.GREEN, "[INFO] Made successfully!")
 
     def build(self, package, args):
-        ctx = self.ctx
         old = set(os.listdir("."))
 
         # Run conda skeleton
@@ -368,7 +355,7 @@ class MakePipRecipe(Command):
         new = set(os.listdir(".")).difference(old)
         self._built.append(package)
         for recipe in new:
-            dst = "pip-{}".format(recipe)
+            dst = f"pip-{recipe}"
             # Rename to add pip-prefix so it doesn't
             # conflict with regular recipes
             if args.force and exists(dst):
@@ -387,7 +374,7 @@ class MakePipRecipe(Command):
             with open(join(dst, "meta.yaml")) as f:
                 # Strip off the jinja tags (and add them in at the end)
                 data = f.read().split("\n")
-                var_lines = len([l for l in data if l.startswith("{%")])
+                var_lines = len([it for it in data if it.startswith("{%")])
                 # Skip version, name, etc..
                 meta = yaml.load(
                     "\n".join(data[var_lines:]), Loader=yaml.RoundTripLoader
@@ -400,18 +387,13 @@ class MakePipRecipe(Command):
             summary = meta["about"].get("summary", "")
             summary += " Built for Android and iOS apps using enaml-native."
             meta["about"]["summary"] = summary
-            meta['build']['noarch'] = True
+            meta["build"]["noarch"] = True
 
             # Update the script to install for every arch
             script = meta["build"].pop("script", "").replace("{{ PYTHON }}", "python")
             build_script = ["export CC=/bin/false", "export CXX=/bin/false"]
             build_script += [
-                "{script} --no-compile "
-                "--target=$PREFIX/{prefix}/python/site-packages ".format(
-                    script=script,
-                    prefix=p,
-                    **ctx
-                )
+                f"{script} --no-compile " f"--target=$PREFIX/{p}/python/site-packages "
                 for p in [
                     "android/arm",
                     "android/arm64",
@@ -429,7 +411,7 @@ class MakePipRecipe(Command):
             for stage in list(meta["requirements"].keys()):
                 reqs = meta["requirements"].pop(stage, [])
                 requires.extend(reqs)
-                r = ["pip-{}".format(r) for r in reqs if r not in excluded]
+                r = [f"pip-{r}" for r in reqs if r not in excluded]
                 if r:
                     meta["requirements"][stage] = r
 
@@ -441,7 +423,7 @@ class MakePipRecipe(Command):
                     pkg = re.split("[<>=]", pkg)[0].strip()
                     if pkg in excluded or pkg in self._built:
                         continue  # Not needed or already done
-                    if args.force or not exists("pip-{}".format(pkg)):
+                    if args.force or not exists(f"pip-{pkg}"):
                         self.build(pkg, args)
 
             # Remove tests we're cross compiling
@@ -455,23 +437,14 @@ class MakePipRecipe(Command):
             # Now build it
             build_args = []
             if args.croot:
-                build_args.append("--croot={}".format(args.croot))
+                build_args.append(f"--croot={args.croot}")
 
             # Want to force a failure on any compiling
             env = os.environ.copy()
-            env.update(
-                {
-                    "CC": "/bin/false",
-                    "CXX": "/bin/false",
-                }
-            )
+            env["CC"] = env["CXX"] = "/bin/false"
 
             shprint(self.cli.conda, "build", dst, *build_args)
-            print(
-                Colors.GREEN
-                + "[INFO] Built {} successfully!".format(dst)
-                + Colors.RESET
-            )
+            print_color(Colors.GREEN, f"[INFO] Built {dst} successfully!")
 
 
 class NdkStack(Command):
@@ -500,7 +473,7 @@ class NdkStack(Command):
             )
         )
         arch = args.arch if args else "armeabi-v7a"
-        sym = "venv/android/enaml-native/src/main/obj/local/{}".format(arch)
+        sym = f"venv/android/enaml-native/src/main/obj/local/{arch}"
         shprint(ndk_stack, sh.adb("logcat", _piped=True), "-sym", sym)
 
 
@@ -516,17 +489,13 @@ class NdkBuild(Command):
         ctx = self.ctx
         env = ctx["android"]
         # Lib version
-        build_ver = sys.version_info.major
         for line in self.cli.conda("list").split("\n"):
             print(line)
             if "android-python" in line:
-                build_ver = 2 if "py27" in line else 3
                 py_version = ".".join(line.split()[1].split(".")[:2])
                 break
 
-        print(
-            Colors.GREEN + "[DEBUG] Building for {}".format(py_version) + Colors.RESET
-        )
+        print_color(Colors.GREEN, f"[DEBUG] Building for {py_version}")
 
         ndk_build = sh.Command(
             join(
@@ -537,17 +506,14 @@ class NdkBuild(Command):
         arches = [ANDROID_TARGETS[arch] for arch in env["targets"]]
 
         #: Where the jni files are
-        jni_dir = env.get(
-            "jni_dir", "{conda_prefix}/android/enaml-native/src/main/jni".format(**env)
-        )
+        conda_prefix = env["conda_prefix"]
+        app_src = f"{conda_prefix}/android/enaml-native/src/main"
+        jni_dir = env.get("jni_dir", f"{app_src}/jni")
         if "jni_dir" not in env:
             env["jni_dir"] = jni_dir
 
         #: Where native libraries go for each arch
-        ndk_build_dir = env.get(
-            "ndk_build_dir",
-            "{conda_prefix}/android/enaml-native/src/main/libs".format(**env),
-        )
+        ndk_build_dir = env.get("ndk_build_dir", f"{app_src}/libs")
         if "ndk_build_dir" not in env:
             env["ndk_build_dir"] = ndk_build_dir
 
@@ -562,7 +528,8 @@ class NdkBuild(Command):
             new_mk = []
             for line in app_mk.split("\n"):
                 if re.match(r"APP_ABI\s*:=\s*.+", line):
-                    line = "APP_ABI := {}".format(" ".join(arches))
+                    app_abi = " ".join(arches)
+                    line = f"APP_ABI := {app_abi}"
                 new_mk.append(line)
 
             with open("Application.mk", "w") as f:
@@ -576,7 +543,7 @@ class NdkBuild(Command):
             new_mk = []
             for line in android_mk.split("\n"):
                 if re.match(r"PY_LIB_VER\s*:=\s*.+", line):
-                    line = "PY_LIB_VER := {}".format(py_version)
+                    line = f"PY_LIB_VER := {py_version}"
                 new_mk.append(line)
 
             with open("Android.mk", "w") as f:
@@ -592,9 +559,7 @@ class NdkBuild(Command):
                 if ep.name.replace("-", "_") == name.replace("-", "_"):
                     ndk_build_hook = ep.load()
                     print(
-                        "Custom ndk_build_hook {} found for '{}'. ".format(
-                            ndk_build_hook, name
-                        )
+                        f"Custom ndk_build_hook {ndk_build_hook} found for '{name}'. "
                     )
                     ndk_build_hook(self.ctx)
                     break
@@ -610,7 +575,7 @@ class NdkBuild(Command):
             cfg.update(env)  # get python_build_dir from the env
 
             #: Where .so files go
-            dst = abspath("{ndk_build_dir}/{arch}".format(**cfg))
+            dst = abspath(f"{ndk_build_dir}/{arch}".format(**cfg))
 
             #: Collect all .so files to the lib dir
             with cd("{conda_prefix}/android/" "{local_arch}/lib/".format(**cfg)):
@@ -671,7 +636,7 @@ class BundleAssets(Command):
         else:
             #: Collect all .so files to the lib dir
             with cd("{conda_prefix}/{target}/lib/".format(target=args.target, **env)):
-                dst = "{root}/ios/Libs".format(root=root)
+                dst = f"{root}/ios/Libs"
                 if exists(dst):
                     shutil.rmtree(dst)
                 os.makedirs(dst)
@@ -692,7 +657,7 @@ class BundleAssets(Command):
             for arch in env["targets"]:
                 cfg.update(
                     dict(
-                        target="android/{}".format(arch),
+                        target=f"android/{arch}",
                         local_arch=arch,
                         arch=ANDROID_TARGETS[arch],
                     )
@@ -730,18 +695,18 @@ class BundleAssets(Command):
 
                 if not args.no_compile:
                     # Compile to pyc
-                    print(Colors.CYAN + "[DEBUG] Compiling py to pyc..." + Colors.RESET)
+                    print_color(Colors.CYAN, "[DEBUG] Compiling py to pyc...")
                     compileall.compile_dir(".", quiet=True)
 
                     # Remove all py files
-                    print(Colors.CYAN + "[DEBUG] Removing py files..." + Colors.RESET)
+                    print_color(Colors.CYAN, "[DEBUG] Removing py files...")
                     for dp, dn, fn in os.walk("."):
                         for f in glob(join(dp, "*.py")):
                             if exists(f + "c") or exists(f + "o"):
                                 os.remove(f)
 
                 # Exclude all py files and any user added patterns
-                print(Colors.CYAN + "[DEBUG] Removing excluded files..." + Colors.RESET)
+                print_color(Colors.CYAN, "[DEBUG] Removing excluded files...")
                 for pattern in env.get("excluded", []) + ["*.dist-info", "*.egg-info"]:
                     matches = glob(pattern)
                     for m in matches:
@@ -752,12 +717,12 @@ class BundleAssets(Command):
 
             #: Remove old
             for ext in [".zip", ".tar.lz4", ".so", ".tar.gz"]:
-                if exists("python.{}".format(ext)):
-                    os.remove("python.{}".format(ext))
+                if exists(f"python.{ext}"):
+                    os.remove(f"python.{ext}")
 
             #: Zip everything and copy to assets arch to build
             with cd("build"):
-                print(Colors.CYAN + "[DEBUG] Creating python bundle..." + Colors.RESET)
+                print_color(Colors.CYAN, "[DEBUG] Creating python bundle...")
                 with tarfile.open("../" + bundle, "w:gz") as tar:
                     tar.add(".")
 
@@ -797,24 +762,20 @@ class BundleAssets(Command):
         #   shutil.copy(src, dst)
 
         # Copy to Android assets
+        python_build_dir = env["python_build_dir"]
         if args.target == "android":
-            cp(
-                "{python_build_dir}/{bundle}".format(bundle=bundle, **env),
-                "android/app/src/main/assets/python/{bundle}".format(bundle=bundle),
-            )
+            dst = f"android/app/src/main/assets/python/{bundle}"
+            cp(f"{python_build_dir}/{bundle}", dst)
 
         # Copy to iOS assets
         else:
             # TODO Use the bundle!
-            cp(
-                "{python_build_dir}/build".format(bundle=bundle, **env),
-                "ios/assets/python".format(bundle=bundle),
-            )
+            cp(f"{python_build_dir}/build", "ios/assets/python")
 
             # cp('{python_build_dir}/{bundle}'.format(bundle=bundle, **env),
             #   'ios/app/src/main/assets/python/{bundle}'.format(bundle=bundle))
 
-        print(Colors.GREEN + "[INFO] Python bundled successfully!" + Colors.RESET)
+        print_color(Colors.GREEN, "[INFO] Python bundled successfully!")
 
 
 class ListPackages(Command):
@@ -854,10 +815,8 @@ class Install(Command):
 
     def run(self, args):
         if os.environ.get("CONDA_DEFAULT_ENV") in [None, "root"]:
-            print(
-                Colors.RED + "enaml-native install should only be used"
-                "within an app env!" + Colors.RESET
-            )
+            msg = "enaml-native install should only be used within an app env!"
+            print_color(Colors.RED, msg)
             raise SystemExit(0)
         if not args.args:
             # Update from the env file
@@ -888,10 +847,8 @@ class Uninstall(Command):
 
     def run(self, args):
         if os.environ.get("CONDA_DEFAULT_ENV") in [None, "root"]:
-            print(
-                Colors.RED + "enaml-native uninstall should only be used"
-                "within an app env!" + Colors.RESET
-            )
+            msg = "enaml-native uninstall should only be used within an app env!"
+            print_color(Colors.RED, msg)
             raise SystemExit(0)
         #: Unlink first
         if hasattr(args, "names"):
@@ -920,7 +877,7 @@ class Link(Command):
 
     title = set_default("link")
     help = set_default(
-        "Link an enaml-native package " "(updates android and ios projects)"
+        "Link an enaml-native package (updates android and ios projects)"
     )
     args = set_default(
         [
@@ -938,18 +895,15 @@ class Link(Command):
     package_dir = "venv"
 
     def run(self, args=None):
-        print(
-            "Linking {}".format(
-                args.names if args and args.names else "all packages..."
-            )
-        )
+        packages = args.names if args and args.names else "all packages..."
+        print(f"Linking {packages}")
 
         if args and args.names:
             for name in args.names:
                 self.link(self.package_dir, name)
         else:
             #: Link everything
-            for target in ["android", "iphoneos", "iphonesimulator"]:
+            for target in ("android", "iphoneos", "iphonesimulator"):
                 sysroot = join(self.package_dir, target)
                 for path in os.listdir(sysroot):
                     self.link(sysroot, path)
@@ -967,21 +921,18 @@ class Link(Command):
 
         #: Use the default builtin linker script
         if exists(join(path, pkg, "build.gradle")):
-            print(
-                Colors.BLUE
-                + "[INFO] Linking {}/build.gradle".format(pkg)
-                + Colors.RESET
-            )
+            print_color(Colors.BLUE, f"[INFO] Linking {pkg}/build.gradle")
             self.link_android(path, pkg)
         if exists(join(path, pkg, "Podfile")):
-            print(Colors.BLUE + "[INFO] Linking {}/Podfile".format(pkg) + Colors.RESET)
+            print_color(Colors.BLUE, f"[INFO] Linking {pkg}/Podfile")
             self.link_ios(path, pkg)
 
     @staticmethod
     def is_settings_linked(source, pkg):
         """Returns true if the "include ':<project>'" line exists in the file"""
+        pattern = rf"include\s*['\"]:{pkg}['\"]"
         for line in source.split("\n"):
-            if re.search(r"include\s*['\"]:{}['\"]".format(pkg), line):
+            if re.search(pattern, line):
                 return True
         return False
 
@@ -989,8 +940,9 @@ class Link(Command):
     def is_build_linked(source, pkg):
         """Returns true if the "compile project(':<project>')"
         line exists exists in the file"""
+        pattern = rf"(api|compile)\s+project\(['\"]:{pkg}['\"]\)"
         for line in source.split("\n"):
-            if re.search(r"(api|compile)\s+project\(['\"]:{}['\"]\)".format(pkg), line):
+            if re.search(pattern, line):
                 return True
         return False
 
@@ -1039,7 +991,6 @@ class Link(Command):
         """
 
         bundle_id = self.ctx["bundle_id"]
-        pkg_root = join(path, pkg)
 
         #: Check if it's already linked
         with open(join("android", "settings.gradle")) as f:
@@ -1064,7 +1015,7 @@ class Link(Command):
             #: Now link all the EnamlPackages we can find in the new "package"
             new_packages = Link.find_packages(join(path, pkg))
             if not new_packages:
-                print("[Android] {} No EnamlPackages found to link!".format(pkg))
+                print(f"[Android] {pkg} No EnamlPackages found to link!")
                 return
 
             #: Link settings.gradle
@@ -1083,11 +1034,9 @@ class Link(Command):
 
                 with open(join("android", "settings.gradle"), "w") as f:
                     f.write("\n".join(new_settings))
-                print("[Android] {} linked in settings.gradle!".format(pkg))
+                print(f"[Android] {pkg} linked in settings.gradle!")
             else:
-                print(
-                    "[Android] {} was already linked in " "settings.gradle!".format(pkg)
-                )
+                print(f"[Android] {pkg} was already linked in " "settings.gradle!")
 
             #: Link app/build.gradle
             if not Link.is_build_linked(build_gradle, pkg):
@@ -1106,21 +1055,17 @@ class Link(Command):
                         break
                 if not found:
                     raise ValueError(
-                        "Unable to find dependencies in "
-                        "{pkg}/app/build.gradle!".format(pkg=pkg)
+                        f"Unable to find dependencies in {pkg}/app/build.gradle!"
                     )
 
                 #: Insert before the closing bracket
-                new_build.insert(i, "    api project(':{name}')".format(name=pkg))
+                new_build.insert(i, f"    api project(':{pkg}')")
 
                 with open(join("android", "app", "build.gradle"), "w") as f:
                     f.write("\n".join(new_build))
-                print("[Android] {} linked in app/build.gradle!".format(pkg))
+                print(f"[Android] {pkg} linked in app/build.gradle!")
             else:
-                print(
-                    "[Android] {} was already linked in "
-                    "app/build.gradle!".format(pkg)
-                )
+                print(f"[Android] {pkg} was already linked in app/build.gradle!")
 
             new_app_java = []
             for package in new_packages:
@@ -1137,7 +1082,7 @@ class Link(Command):
                         if fnmatch.fnmatch(line, "import *;"):
                             j = i
 
-                    new_app_java.insert(j + 1, "import {};".format(javacls))
+                    new_app_java.insert(j + 1, f"import {javacls};")
 
                     #: Add the package statement
                     j = 0
@@ -1146,8 +1091,7 @@ class Link(Command):
                             j = i
                     if j == 0:
                         raise ValueError(
-                            "Could not find the correct spot to "
-                            "add package {}".format(javacls)
+                            f"Could not find the correct spot to add package {javacls}"
                         )
                     else:
                         #: Get indent and add to previous line
@@ -1155,33 +1099,24 @@ class Link(Command):
                         new_app_java[j] = new_app_java[j] + ","
 
                         #: Insert new line
+                        javacls_name = javacls.split(".")[-1]
                         new_app_java.insert(
-                            j + 1,
-                            "                new {}()".format(javacls.split(".")[-1]),
+                            j + 1, f"                new {javacls_name}()"
                         )
 
                 else:
                     print(
-                        "[Android] {} was already linked in {}!".format(
-                            pkg, main_app_java_path
-                        )
+                        f"[Android] {pkg} was already linked in {main_app_java_path}!"
                     )
 
             if new_app_java:
                 with open(main_app_java_path, "w") as f:
                     f.write("\n".join(new_app_java))
 
-            print(
-                Colors.GREEN
-                + "[Android] {} linked successfully!".format(pkg)
-                + Colors.RESET
-            )
+            print_color(Colors.GREEN, f"[Android] {pkg} linked successfully!")
         except Exception as e:
-            print(
-                Colors.GREEN + "[Android] {} Failed to link. "
-                "Reverting due to error: "
-                "{}".format(pkg, e) + Colors.RESET
-            )
+            msg = f"[Android] {pkg} Failed to link. Reverting: {e}"
+            print_color(Colors.RED, msg)
 
             #: Undo any changes
             with open(join("android", "settings.gradle"), "w") as f:
@@ -1226,7 +1161,7 @@ class Unlink(Command):
 
     def run(self, args=None):
         """The name IS required here."""
-        print(Colors.BLUE + "[INFO] Unlinking {}...".format(args.names) + Colors.RESET)
+        print_color(Colors.BLUE, f"[INFO] Unlinking {args.names}...")
         for name in args.names:
             self.unlink(Link.package_dir, name)
 
@@ -1236,20 +1171,18 @@ class Unlink(Command):
         for ep in pkg_resources.iter_entry_points(group="enaml_native_unlinker"):
             if ep.name.replace("-", "_") == pkg.replace("-", "_"):
                 unlinker = ep.load()
-                print(
-                    "Custom unlinker {} found for '{}'. "
-                    "Unlinking...".format(unlinker, pkg)
-                )
+                msg = f"Custom unlinker {unlinker} found '{pkg}'. Unlinking..."
+                print(msg)
                 if unlinker(self.ctx, path):
                     return
 
         if exists(join(path, "android", pkg, "build.gradle")):
-            print("[Android] unlinking {}".format(pkg))
+            print(f"[Android] unlinking {pkg}")
             self.unlink_android(path, pkg)
 
         for target in ["iphoneos", "iphonesimulator"]:
             if exists(join(path, target, pkg, "Podfile")):
-                print("[iOS] unlinking {}".format(pkg))
+                print(f"[iOS] unlinking {pkg}")
                 self.unlink_ios(path, pkg)
 
     def unlink_android(self, path, pkg):
@@ -1301,10 +1234,8 @@ class Unlink(Command):
             #: Now link all the EnamlPackages we can find in the new "package"
             new_packages = Link.find_packages(join(path, "android", pkg))
             if not new_packages:
-                print(
-                    Colors.RED + "\t[Android] {} No EnamlPackages found to "
-                    "unlink!".format(pkg) + Colors.RESET
-                )
+                msg = f"\t[Android] {pkg} No EnamlPackages found to unlink!"
+                print_color(Colors.RED, msg)
                 return
 
             #: Unlink settings.gradle
@@ -1315,20 +1246,18 @@ class Unlink(Command):
                     for line in settings_gradle.split("\n")
                     if line.strip()
                     not in [
-                        "include ':{name}'".format(name=pkg),
-                        "project(':{name}').projectDir = "
+                        f"include ':{pkg}'",
+                        f"project(':{pkg}').projectDir = "
                         "new File(rootProject.projectDir, "
-                        "'../{path}/android/{name}')".format(path=path, name=pkg),
+                        f"'../{path}/android/{pkg}')",
                     ]
                 ]
 
                 with open(join("android", "settings.gradle"), "w") as f:
                     f.write("\n".join(new_settings))
-                print("\t[Android] {} unlinked settings.gradle!".format(pkg))
+                print(f"\t[Android] {pkg} unlinked settings.gradle!")
             else:
-                print(
-                    "\t[Android] {} was not linked in " "settings.gradle!".format(pkg)
-                )
+                print(f"\t[Android] {pkg} was not linked in settings.gradle!")
 
             #: Unlink app/build.gradle
             if Link.is_build_linked(build_gradle, pkg):
@@ -1338,19 +1267,17 @@ class Unlink(Command):
                     for line in build_gradle.split("\n")
                     if line.strip()
                     not in [
-                        "compile project(':{name}')".format(name=pkg),
-                        "api project(':{name}')".format(name=pkg),
+                        f"compile project(':{pkg}')",
+                        f"api project(':{pkg}')",
                     ]
                 ]
 
                 with open(join("android", "app", "build.gradle"), "w") as f:
                     f.write("\n".join(new_build))
 
-                print("\t[Android] {} unlinked in " "app/build.gradle!".format(pkg))
+                print(f"\t[Android] {pkg} unlinked in app/build.gradle!")
             else:
-                print(
-                    "\t[Android] {} was not linked in " "app/build.gradle!".format(pkg)
-                )
+                print(f"\t[Android] {pkg} was not linked in app/build.gradle!")
 
             new_app_java = []
             for package in new_packages:
@@ -1358,17 +1285,17 @@ class Unlink(Command):
                 javacls = os.path.splitext(package)[0].replace("/", ".")
 
                 if Link.is_app_linked(main_application_java, pkg, javacls):
-                    #: Reuse previous if avialable
+                    #: Reuse previous if available
                     new_app_java = new_app_java or main_application_java.split("\n")
-
+                    javacls_name = javacls.split(".")[-1]
                     new_app_java = [
                         line
                         for line in new_app_java
                         if line.strip()
                         not in [
-                            "import {};".format(javacls),
-                            "new {}()".format(javacls.split(".")[-1]),
-                            "new {}(),".format(javacls.split(".")[-1]),
+                            f"import {javacls};",
+                            f"new {javacls_name}()",
+                            f"new {javacls_name}(),",
                         ]
                     ]
 
@@ -1388,27 +1315,16 @@ class Unlink(Command):
                         new_app_java[j] = new_app_java[j][: new_app_java[j].rfind(",")]
 
                 else:
-                    print(
-                        "\t[Android] {} was not linked in {}!".format(
-                            pkg, main_app_java_path
-                        )
-                    )
+                    print(f"\t[Android] {pkg} was not linked in {main_app_java_path}!")
 
             if new_app_java:
                 with open(main_app_java_path, "w") as f:
                     f.write("\n".join(new_app_java))
 
-            print(
-                Colors.GREEN
-                + "\t[Android] {} unlinked successfully!".format(pkg)
-                + Colors.RESET
-            )
-
+            print_color(Colors.GREEN, f"\t[Android] {pkg} unlinked successfully!")
         except Exception as e:
-            print(
-                Colors.RED + "\t[Android] {} Failed to unlink. "
-                "Reverting due to error: {}".format(pkg, e) + Colors.RESET
-            )
+            msg = f"\t[Android] {pkg} Failed to unlink. Reverting: {e}"
+            print_color(Colors.RED, msg)
 
             #: Undo any changes
             with open(join("android", "settings.gradle"), "w") as f:
@@ -1492,7 +1408,7 @@ class RunAndroid(Command):
                 "am",
                 "start",
                 "-n",
-                "{bundle_id}/{bundle_id}.MainActivity".format(bundle_id=bundle_id),
+                f"{bundle_id}/{bundle_id}.MainActivity",
             )
 
 
@@ -1524,7 +1440,6 @@ class RunIOS(Command):
 
     def run(self, args=None):
         ctx = self.ctx
-        env = ctx["ios"]
         with cd("ios"):
             ws = glob("*.xcworkspace")
             if not ws:
@@ -1563,7 +1478,6 @@ class BuildIOS(Command):
     )
 
     def run(self, args=None):
-        ctx = self.ctx
         with cd("ios"):
             ws = glob("*.xcworkspace")
             if not ws:
@@ -1643,10 +1557,6 @@ class Server(Command):
     app_dir_required = set_default(False)
 
     def run(self, args=None):
-        ctx = self.ctx
-        #: Look for tornado or twisted in reqs
-        use_twisted = 'twisted' in str(ctx.get('dependencies', []))
-
         #: Save setting
         self.remote_debugging = args and args.remote_debugging
 
@@ -1656,19 +1566,17 @@ class Server(Command):
             shprint(
                 sh.adb,
                 "reverse",
-                "tcp:{}".format(self.port),
-                "tcp:{}".format(self.port),
+                f"tcp:{self.port}",
+                f"tcp:{self.port}",
             )
         else:
             #: Setup observer
             try:
-                from watchdog.observers import Observer
                 from watchdog.events import LoggingEventHandler
+                from watchdog.observers import Observer
             except ImportError:
-                print(
-                    Colors.RED + "[WARNING] Watchdog is required the dev "
-                    "server: Run 'pip install watchdog'" + Colors.RESET
-                )
+                msg = "[WARNING] Watchdog is required the dev server: Run 'pip install watchdog'"
+                print_color(Colors.RED, msg)
                 return
             self.observer = Observer()
             server = self
@@ -1681,15 +1589,13 @@ class Server(Command):
 
         with cd("src"):
             if not self.remote_debugging:
-                print("Watching {}".format(abspath(".")))
+                src_dir = abspath(".")
+                print(f"Watching {src_dir}")
                 self.watcher = AppNotifier()
-                self.observer.schedule(self.watcher, abspath("."), recursive=True)
+                self.observer.schedule(self.watcher, src_dir, recursive=True)
                 self.observer.start()
 
-            if use_twisted:
-                self.run_twisted(args)
-            else:
-                self.run_tornado(args)
+            self.run_tornado(args)
 
     def run_tornado(self, args):
         """Tornado dev server implementation"""
@@ -1728,62 +1634,15 @@ class Server(Command):
         )
 
         app.listen(self.port)
-        print("Tornado Dev server started on {}".format(self.port))
+        print(f"Tornado Dev server started on {self.port}")
         ioloop.start()
-
-    def run_twisted(self, args):
-        """Twisted dev server implementation"""
-        server = self
-
-        from twisted.internet import reactor
-        from twisted.web import resource
-        from twisted.web.static import File
-        from twisted.web.server import Site
-        from autobahn.twisted.websocket import (
-            WebSocketServerFactory,
-            WebSocketServerProtocol,
-        )
-        from autobahn.twisted.resource import WebSocketResource
-
-        class DevWebSocketHandler(WebSocketServerProtocol):
-            def onConnect(self, request):
-                super(DevWebSocketHandler, self).onConnect(request)
-                server.on_open(self)
-
-            def onMessage(self, payload, isBinary):
-                server.on_message(self, payload)
-
-            def onClose(self, wasClean, code, reason):
-                super(DevWebSocketHandler, self).onClose(wasClean, code, reason)
-                server.on_close(self)
-
-            def write_message(self, message, binary=False):
-                self.sendMessage(message, binary)
-
-        #: Set the call later method
-        server.call_later = reactor.callLater
-        server.add_callback = reactor.callFromThread
-
-        factory = WebSocketServerFactory("ws://0.0.0.0:{}".format(self.port))
-        factory.protocol = DevWebSocketHandler
-
-        class MainHandler(resource.Resource):
-            def render_GET(self, req):
-                return str(server.index_page)
-
-        root = resource.Resource()
-        root.putChild("", MainHandler())
-        root.putChild("dev", WebSocketResource(factory))
-        reactor.listenTCP(self.port, Site(root))
-        print("Twisted Dev server started on {}".format(self.port))
-        reactor.run()
 
     #: ========================================================
     #: Shared protocol implementation
     #: ========================================================
     def on_open(self, handler):
         self._reload_count = 0
-        print("Client {} connected!".format(handler))
+        print(f"Client {handler} connected!")
         self.handlers.append(handler)
 
     def on_message(self, handler, msg):
@@ -1809,7 +1668,7 @@ class Server(Command):
             h.write_message(msg)
 
     def on_close(self, handler):
-        print("Client {} left!".format(handler))
+        print(f"Client {handler} left!")
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):
@@ -1836,7 +1695,7 @@ class Server(Command):
             if files:
                 #: Send the reload request
                 msg = {"type": "reload", "files": files}
-                print("Reloading: {}".format(files.keys()))
+                print(f"Reloading: {files.keys()}")
                 self.send_message(json.dumps(msg))
 
             #: Clear changes
@@ -1893,8 +1752,8 @@ class EnamlNativeCli(Atom):
             c = ep.load()
             if not issubclass(c, Command):
                 print(
-                    "Warning: entry point {} did not return a valid enaml "
-                    "cli command! This command will be ignored!".format(ep.name)
+                    f"Warning: entry point {ep.name} did not return a valid enaml "
+                    "cli command! This command will be ignored!"
                 )
             commands.append(c())
 
@@ -1914,7 +1773,7 @@ class EnamlNativeCli(Atom):
 
         """
         if not self.in_app_directory:
-            print("Warning: {} does not exist. Using the default.".format(self.package))
+            print(f"Warning: {self.package} does not exist. Using the default.")
             ctx = {}
 
         else:
@@ -1967,7 +1826,7 @@ class EnamlNativeCli(Atom):
             info = json.loads(str(self.conda("info", "--json")))
             self.in_app_env = info["active_prefix_name"] != "base"
             self.conda_env_info = info
-        except:
+        except Exception:
             raise EnvironmentError(
                 "conda could not be found. Please install miniconda from "
                 "https://conda.io/miniconda.html or set CONDA_HOME to the"
@@ -1981,13 +1840,13 @@ class EnamlNativeCli(Atom):
         """
         if cmd.app_dir_required and not self.in_app_directory:
             raise EnvironmentError(
-                "'enaml-native {}' must be run within an app root directory. "
-                "Not: {}".format(cmd.title, os.getcwd())
+                f"'enaml-native {cmd.title}' must be run within an app root "
+                f"directory. Not: {os.getcwd()}"
             )
         if cmd.app_env_required and not self.in_app_env:
             raise EnvironmentError(
-                "'enaml-native {}' must be run with an app's env activated. "
-                "Please run `conda activate <app-name>` and retry".format(cmd.title)
+                f"'enaml-native {cmd.title}' must be run with an app's env "
+                "activated. Please run `conda activate <app-name>` and retry"
             )
 
     def start(self):
@@ -2004,7 +1863,7 @@ class EnamlNativeCli(Atom):
         self.check_setup(cmd)
         try:
             cmd.run(self.args)
-        except sh.ErrorReturnCode as e:
+        except sh.ErrorReturnCode:
             raise
 
 

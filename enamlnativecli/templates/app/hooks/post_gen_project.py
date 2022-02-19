@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
+import json
 import os
 import sys
-import json
+
 from enamlnativecli.main import find_conda
 
 # Find conda on the system
 conda = find_conda()
 kw = {}
-IS_WIN = 'win32' in sys.platform
+IS_WIN = "win32" in sys.platform
 
 if IS_WIN:
     process = sys.stdout

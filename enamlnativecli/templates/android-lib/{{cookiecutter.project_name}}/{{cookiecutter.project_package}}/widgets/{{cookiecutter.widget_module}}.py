@@ -6,14 +6,14 @@ Distributed under the terms of the {{cookiecutter.project_license}} License.
 The full license is in the file COPYING.txt, distributed with this software.
 
 """
-from atom.api import Typed, ForwardTyped, set_default, observe
-from enaml.core.declarative import d_
+from atom.api import ForwardTyped, Typed
+from enaml.core.declarative import d_, observe
+# Use these if your widget subclasses android.view.View
+from enamlnative.widget.view import ProxyView, View
 
 # Use these if your widget subclasses java.lang.Object
 # from enaml.widgets.toolkit_object import ToolkitObject, ProxyToolkitObject
 
-# Use these if your widget subclasses android.view.View
-from enamlnative.widget.view import View, ProxyView
 
 
 class Proxy{{cookiecutter.widget_name}}(ProxyView):

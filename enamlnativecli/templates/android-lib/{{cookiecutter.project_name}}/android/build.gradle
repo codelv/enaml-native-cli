@@ -1,12 +1,12 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 27
-    buildToolsVersion '26.0.2'
+    compileSdkVersion 32
+    buildToolsVersion '32.0.2'
 
     defaultConfig {
         minSdkVersion 19
-        targetSdkVersion 27
+        targetSdkVersion 32
         versionCode {{cookiecutter.project_version}}
         versionName "{{cookiecutter.project_version}}"
     }
@@ -18,15 +18,15 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
 }
 
 dependencies {
     api project(':enaml-native')
-    
+
     // Add dependencies here
 }
 
