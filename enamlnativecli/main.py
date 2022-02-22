@@ -24,19 +24,9 @@ from contextlib import contextmanager
 from distutils.dir_util import copy_tree
 from glob import glob
 from os.path import abspath, dirname, exists, expanduser, join
+from typing import ClassVar
 
-from atom.api import (
-    Atom,
-    Bool,
-    Callable,
-    Dict,
-    Float,
-    Instance,
-    Int,
-    List,
-    Str,
-    set_default,
-)
+from atom.api import Atom, Bool, Callable, Dict, Float, Instance, Int, List, Str
 from cookiecutter.log import configure_logger
 from cookiecutter.main import cookiecutter
 from pkg_resources import iter_entry_points
@@ -66,21 +56,21 @@ if IS_WIN:
     emulator = join(ANDROID_SDK, "emulator", "emulator.exe")
 
     if exists(adb):
-        sh.adb = sh.Command(adb)
+        sh.adb = sh.Command(adb)  # type: ignore
     else:
         raise EnvironmentError(
             "Couldn't find a adb in your System, "
             "Make sure android studio is installed"
         )
     if exists(emulator):
-        sh.emulator = sh.Command(emulator)
+        sh.emulator = sh.Command(emulator)  # type: ignore
     else:
         raise EnvironmentError(
             "Couldn't find a emulator in your System, "
             "Make sure android studio is installed"
         )
 else:
-    import sh
+    import sh  # type: ignore
 
 
 def print_color(color, msg):
@@ -209,13 +199,13 @@ ANDROID_TARGETS = {v: k for k, v in ANDROID_ABIS.items()}
 class Command(Atom):
     _instance = None
     #: Subcommand name ex enaml-native <name>
-    title = Str()
+    title: ClassVar[str] = ""
 
     #: Subcommand short description
-    desc = Str()
+    desc: ClassVar[str] = ""
 
     #: Subcommand help text
-    help = Str()
+    help: ClassVar[str] = ""
 
     #: Package context used to retrieve app config and env
     ctx = Dict()
@@ -224,16 +214,16 @@ class Command(Atom):
     cmds = Dict()
 
     #: Arguments this command accepts
-    args = List(tuple)
+    args: ClassVar[list]
 
     #: Parser this command uses. Generated automatically.
     parser = Instance(ArgumentParser)
 
     #: If the command requires running in an app dir
-    app_dir_required = Bool(True)
+    app_dir_required: ClassVar[bool] = True
 
     #: If the command must be run in an app virtual env
-    app_env_required = Bool(True)
+    app_env_required: ClassVar[bool] = True
 
     #: Reference to the cli
     cli = Instance(Atom)
@@ -247,26 +237,24 @@ class Command(Atom):
 
 
 class Create(Command):
-    title = set_default("create")
-    help = set_default("Create an enaml-native project")
-    args = set_default(
-        [
-            ("what", dict(help="What to create (app, lib, package)?")),
-            ("--no-input", dict(action="store_true", help="Use all defaults")),
-            (
-                "-f --overwrite-if-exists",
-                dict(
-                    action="store_true",
-                    help="Overwrite the contents if" "it already exists",
-                ),
+    title = "create"
+    help = "Create an enaml-native project"
+    args = [
+        ("what", dict(help="What to create (app, lib, package)?")),
+        ("--no-input", dict(action="store_true", help="Use all defaults")),
+        (
+            "-f --overwrite-if-exists",
+            dict(
+                action="store_true",
+                help="Overwrite the contents if" "it already exists",
             ),
-            ("-v --verbose", dict(action="store_true", help="Verbose logging")),
-        ]
-    )
+        ),
+        ("-v --verbose", dict(action="store_true", help="Verbose logging")),
+    ]
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
-    app_env_required = set_default(False)
+    app_dir_required = False
+    app_env_required = False
 
     def run(self, args):
         template = join(dirname(__file__), "templates", args.what)
@@ -292,18 +280,16 @@ class Create(Command):
 
 
 class BuildRecipe(Command):
-    title = set_default("build-recipe")
-    help = set_default("Alias to conda build")
-    args = set_default(
-        [
-            ("package", dict(help="Conda recipe to build")),
-            ("args", dict(nargs=REMAINDER, help="args to pass to conda build")),
-        ]
-    )
+    title = "build-recipe"
+    help = "Alias to conda build"
+    args = [
+        ("package", dict(help="Conda recipe to build")),
+        ("args", dict(nargs=REMAINDER, help="args to pass to conda build")),
+    ]
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
-    app_env_required = set_default(False)
+    app_dir_required = False
+    app_env_required = False
 
     def run(self, args):
         env = os.environ.copy()
@@ -314,30 +300,24 @@ class BuildRecipe(Command):
 
 
 class MakePipRecipe(Command):
-    title = set_default("make-pip-recipe")
-    help = set_default(
-        "Creates a universal Android and iOS recipe " "for a given pip package"
-    )
-    args = set_default(
-        [
-            ("package", dict(help="pip package to build a recipe for")),
-            (
-                "--recursive",
-                dict(
-                    action="store_true", help="recursively create for all dependencies"
-                ),
-            ),
-            (
-                "--force",
-                dict(action="store_true", help="force recreation if it already exists"),
-            ),
-            ("--croot", dict(nargs="?", help="conda root for building recipes")),
-        ]
-    )
+    title = "make-pip-recipe"
+    help = "Creates a universal Android and iOS recipe for a given pip package"
+    args = [
+        ("package", dict(help="pip package to build a recipe for")),
+        (
+            "--recursive",
+            dict(action="store_true", help="recursively create for all dependencies"),
+        ),
+        (
+            "--force",
+            dict(action="store_true", help="force recreation if it already exists"),
+        ),
+        ("--croot", dict(nargs="?", help="conda root for building recipes")),
+    ]
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
-    app_env_required = set_default(False)
+    app_dir_required = False
+    app_env_required = False
 
     #: Recipes built
     _built = List()
@@ -454,14 +434,12 @@ class NdkStack(Command):
     See https://developer.android.com/ndk/guides/ndk-stack.html
     """
 
-    title = set_default("ndk-stack")
-    help = set_default("Run ndk-stack on the adb output")
-    args = set_default(
-        [
-            ("arch", dict(nargs="?", default="armeabi-v7a")),
-            ("args", dict(nargs=REMAINDER, help="Extra args for ndk-stack")),
-        ]
-    )
+    title = "ndk-stack"
+    help = "Run ndk-stack on the adb output"
+    args = [
+        ("arch", dict(nargs="?", default="armeabi-v7a")),
+        ("args", dict(nargs=REMAINDER, help="Extra args for ndk-stack")),
+    ]
 
     def run(self, args=None):
         ctx = self.ctx
@@ -482,8 +460,8 @@ class NdkBuild(Command):
     that define an `enaml_native_ndk_build` entry_point.
     """
 
-    title = set_default("ndk-build")
-    help = set_default("Run ndk-build on the android project")
+    title = "ndk-build"
+    help = "Run ndk-build on the android project"
 
     def run(self, args=None):
         ctx = self.ctx
@@ -592,25 +570,23 @@ class NdkBuild(Command):
 class BundleAssets(Command):
     """This is used by the gradle build to pack python into a zip."""
 
-    title = set_default("bundle-assets")
-    help = set_default("Creates a python bundle of all .py and .enaml files")
-    args = set_default(
-        [
-            (
-                "target",
-                dict(
-                    nargs="?",
-                    default="android",
-                    help="Build for the given target (android, iphoneos, iphonesimulator)",
-                ),
+    title = "bundle-assets"
+    help = "Creates a python bundle of all .py and .enaml files"
+    args = [
+        (
+            "target",
+            dict(
+                nargs="?",
+                default="android",
+                help="Build for the given target (android, iphoneos, iphonesimulator)",
             ),
-            ("--release", dict(action="store_true", help="Create a release bundle")),
-            (
-                "--no-compile",
-                dict(action="store_true", help="Don't generate python cache"),
-            ),
-        ]
-    )
+        ),
+        ("--release", dict(action="store_true", help="Create a release bundle")),
+        (
+            "--no-compile",
+            dict(action="store_true", help="Don't generate python cache"),
+        ),
+    ]
 
     def run(self, args=None):
         ctx = self.ctx
@@ -779,11 +755,11 @@ class BundleAssets(Command):
 
 
 class ListPackages(Command):
-    title = set_default("list")
-    help = set_default("List installed packages (alias to conda list)")
+    title = "list"
+    help = "List installed packages (alias to conda list)"
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
+    app_dir_required = False
 
     def run(self, args):
         shprint(self.cli.conda, "list")
@@ -795,23 +771,21 @@ class Install(Command):
 
     """
 
-    title = set_default("install")
-    help = set_default("Install and link an enaml-native package")
-    args = set_default(
-        [
-            (
-                "args",
-                dict(
-                    nargs="*",
-                    help="Args to pass to conda install. "
-                    "If blank it uses the environment.yml file",
-                ),
+    title = "install"
+    help = "Install and link an enaml-native package"
+    args = [
+        (
+            "args",
+            dict(
+                nargs="*",
+                help="Args to pass to conda install. "
+                "If blank it uses the environment.yml file",
             ),
-        ]
-    )
+        ),
+    ]
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
+    app_dir_required = False
 
     def run(self, args):
         if os.environ.get("CONDA_DEFAULT_ENV") in [None, "root"]:
@@ -834,16 +808,14 @@ class Uninstall(Command):
 
     """
 
-    title = set_default("uninstall")
-    help = set_default("Uninstall and unlink enaml-native package")
-    args = set_default(
-        [
-            ("args", dict(help="Args to conda uninstall", nargs=REMAINDER)),
-        ]
-    )
+    title = "uninstall"
+    help = "Uninstall and unlink enaml-native package"
+    args = [
+        ("args", dict(help="Args to conda uninstall", nargs=REMAINDER)),
+    ]
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
+    app_dir_required = False
 
     def run(self, args):
         if os.environ.get("CONDA_DEFAULT_ENV") in [None, "root"]:
@@ -875,21 +847,17 @@ class Link(Command):
 
     """
 
-    title = set_default("link")
-    help = set_default(
-        "Link an enaml-native package (updates android and ios projects)"
-    )
-    args = set_default(
-        [
-            (
-                "names",
-                dict(
-                    help="Package name (optional) If not set links all projects.",
-                    nargs="*",
-                ),
+    title = "link"
+    help = "Link an enaml-native package (updates android and ios projects)"
+    args = [
+        (
+            "names",
+            dict(
+                help="Package name (optional) If not set links all projects.",
+                nargs="*",
             ),
-        ]
-    )
+        ),
+    ]
 
     #: Where "enaml native packages" are installed within the root
     package_dir = "venv"
@@ -1151,13 +1119,11 @@ class Unlink(Command):
 
     """
 
-    title = set_default("unlink")
-    help = set_default("Unlink an enaml-native package")
-    args = set_default(
-        [
-            ("names", dict(help="Package name", nargs="+")),
-        ]
-    )
+    title = "unlink"
+    help = "Unlink an enaml-native package"
+    args = [
+        ("names", dict(help="Package name", nargs="+")),
+    ]
 
     def run(self, args=None):
         """The name IS required here."""
@@ -1279,7 +1245,7 @@ class Unlink(Command):
             else:
                 print(f"\t[Android] {pkg} was not linked in app/build.gradle!")
 
-            new_app_java = []
+            new_app_java: list[str] = []
             for package in new_packages:
                 #: Add our import statement
                 javacls = os.path.splitext(package)[0].replace("/", ".")
@@ -1337,16 +1303,17 @@ class Unlink(Command):
             #: Now blow up
             raise
 
+    def unlink_ios(self, path: str, pkg: str):
+        pass  # TODO
+
 
 class BuildAndroid(Command):
-    title = set_default("build-android")
-    help = set_default("Build android project")
-    args = set_default(
-        [
-            ("--release", dict(action="store_true", help="Release mode")),
-            ("extra", dict(nargs=REMAINDER, help="Args to pass to gradle")),
-        ]
-    )
+    title = "build-android"
+    help = "Build android project"
+    args = [
+        ("--release", dict(action="store_true", help="Release mode")),
+        ("extra", dict(nargs=REMAINDER, help="Args to pass to gradle")),
+    ]
 
     def run(self, args=None):
         with cd("android"):
@@ -1358,8 +1325,8 @@ class BuildAndroid(Command):
 
 
 class CleanAndroid(Command):
-    title = set_default("clean-android")
-    help = set_default("Clean the android project")
+    title = "clean-android"
+    help = "Clean the android project"
 
     def run(self, args=None):
         with cd("android"):
@@ -1368,14 +1335,12 @@ class CleanAndroid(Command):
 
 
 class RunAndroid(Command):
-    title = set_default("run-android")
-    help = set_default("Build android project, install it, and run")
-    args = set_default(
-        [
-            ("--release", dict(action="store_true", help="Build in Release mode")),
-            ("extra", dict(nargs=REMAINDER, help="Extra args to pass to gradle")),
-        ]
-    )
+    title = "run-android"
+    help = "Build android project, install it, and run"
+    args = [
+        ("--release", dict(action="store_true", help="Build in Release mode")),
+        ("extra", dict(nargs=REMAINDER, help="Extra args to pass to gradle")),
+    ]
 
     def run(self, args=None):
         ctx = self.ctx
@@ -1387,10 +1352,10 @@ class RunAndroid(Command):
             )
             #: Fix permissions for running gradlew in mac / linux
             if IS_WIN:
-                gradlew = sh.Command('gradlew.bat')
+                gradlew = sh.Command("gradlew.bat")
             else:
-                gradlew = sh.Command('chmod 755 gradlew')
-                gradlew = sh.Command('./gradlew')
+                gradlew = sh.Command("chmod 755 gradlew")
+                gradlew = sh.Command("./gradlew")
 
             #: If no devices are connected, start the simulator
             if len(sh.adb("devices").stdout.strip()) == 1:
@@ -1413,8 +1378,8 @@ class RunAndroid(Command):
 
 
 class CleanIOS(Command):
-    title = set_default("clean-ios")
-    help = set_default("Clean the ios project")
+    title = "clean-ios"
+    help = "Clean the ios project"
 
     def run(self, args=None):
         with cd("ios"):
@@ -1430,13 +1395,11 @@ class CleanIOS(Command):
 
 
 class RunIOS(Command):
-    title = set_default("run-ios")
-    help = set_default("Build and run the ios project")
-    args = set_default(
-        [
-            ("--release", dict(action="store_true", help="Build in Release mode")),
-        ]
-    )
+    title = "run-ios"
+    help = "Build and run the ios project"
+    args = [
+        ("--release", dict(action="store_true", help="Build in Release mode")),
+    ]
 
     def run(self, args=None):
         ctx = self.ctx
@@ -1469,13 +1432,11 @@ class RunIOS(Command):
 
 
 class BuildIOS(Command):
-    title = set_default("build-ios")
-    help = set_default("Build the ios project")
-    args = set_default(
-        [
-            ("--release", dict(action="store_true", help="Build in Release mode")),
-        ]
-    )
+    title = "build-ios"
+    help = "Build the ios project"
+    args = [
+        ("--release", dict(action="store_true", help="Build in Release mode")),
+    ]
 
     def run(self, args=None):
         with cd("ios"):
@@ -1508,22 +1469,20 @@ class Server(Command):
 
     """
 
-    title = set_default("start")
-    help = set_default("Start a debug server for serving files to the app")
+    title = "start"
+    help = "Start a debug server for serving files to the app"
     #: Dev server index page to render
     index_page = Str(
         "enaml-native dev server. "
         "When you change a source file it pushes to the app."
     )
 
-    args = set_default(
-        [
-            (
-                "--remote-debugging",
-                dict(action="store_true", help="Run in remote debugging mode"),
-            ),
-        ]
-    )
+    args = [
+        (
+            "--remote-debugging",
+            dict(action="store_true", help="Run in remote debugging mode"),
+        ),
+    ]
 
     #: Server port
     port = Int(8888)
@@ -1554,7 +1513,7 @@ class Server(Command):
     remote_debugging = Bool()
 
     #: Can be run from anywhere
-    app_dir_required = set_default(False)
+    app_dir_required = False
 
     def run(self, args=None):
         #: Save setting
