@@ -25,7 +25,6 @@ from distutils.dir_util import copy_tree
 from glob import glob
 from os.path import abspath, dirname, exists, expanduser, join
 
-import pkg_resources
 from atom.api import (
     Atom,
     Bool,
@@ -40,6 +39,7 @@ from atom.api import (
 )
 from cookiecutter.log import configure_logger
 from cookiecutter.main import cookiecutter
+from pkg_resources import iter_entry_points
 
 try:
     # Try conda's version
@@ -554,7 +554,7 @@ class NdkBuild(Command):
 
         #: Add entry point so packages can include their own jni libs
         dependencies = ctx["dependencies"]  # .keys()
-        for ep in pkg_resources.iter_entry_points(group="enaml_native_ndk_build"):
+        for ep in iter_entry_points(group="enaml_native_ndk_build"):
             for name in dependencies:
                 if ep.name.replace("-", "_") == name.replace("-", "_"):
                     ndk_build_hook = ep.load()
@@ -911,7 +911,7 @@ class Link(Command):
     def link(self, path, pkg):
         """Link the package in the current directory."""
         # Check if a custom linker exists to handle linking this package
-        # for ep in pkg_resources.iter_entry_points(group="enaml_native_linker"):
+        # for ep in iter_entry_points(group="enaml_native_linker"):
         #    if ep.name.replace("-", '_') == pkg.replace("-", '_'):
         #        linker = ep.load()
         #        print("Custom linker {} found for '{}'. Linking...".format(
@@ -1165,10 +1165,10 @@ class Unlink(Command):
         for name in args.names:
             self.unlink(Link.package_dir, name)
 
-    def unlink(self, path, pkg):
+    def unlink(self, path: str, pkg: str):
         """Unlink the package in the current directory."""
         #: Check if a custom unlinker exists to handle unlinking this package
-        for ep in pkg_resources.iter_entry_points(group="enaml_native_unlinker"):
+        for ep in iter_entry_points(group="enaml_native_unlinker"):
             if ep.name.replace("-", "_") == pkg.replace("-", "_"):
                 unlinker = ep.load()
                 msg = f"Custom unlinker {unlinker} found '{pkg}'. Unlinking..."
@@ -1185,7 +1185,7 @@ class Unlink(Command):
                 print(f"[iOS] unlinking {pkg}")
                 self.unlink_ios(path, pkg)
 
-    def unlink_android(self, path, pkg):
+    def unlink_android(self, path: str, pkg: str):
         """Unlink's the android project to this library.
 
         1. In the app's android/settings.gradle, it removes the following
@@ -1748,7 +1748,7 @@ class EnamlNativeCli(Atom):
         commands = [c() for c in find_commands(Command)]
 
         #: Get commands installed via entry points
-        for ep in pkg_resources.iter_entry_points(group="enaml_native_command"):
+        for ep in iter_entry_points(group="enaml_native_command"):
             c = ep.load()
             if not issubclass(c, Command):
                 print(
