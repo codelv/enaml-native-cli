@@ -214,7 +214,7 @@ class Command(Atom):
     cmds = Dict()
 
     #: Arguments this command accepts
-    args: ClassVar[list]
+    args: ClassVar[list] = []
 
     #: Parser this command uses. Generated automatically.
     parser = Instance(ArgumentParser)
