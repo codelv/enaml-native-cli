@@ -246,7 +246,7 @@ class Create(Command):
             "-f --overwrite-if-exists",
             dict(
                 action="store_true",
-                help="Overwrite the contents if" "it already exists",
+                help="Overwrite the contents if it already exists",
             ),
         ),
         ("-v --verbose", dict(action="store_true", help="Verbose logging")),
