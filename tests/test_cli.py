@@ -9,11 +9,12 @@ Created on Oct 31, 2017
 
 @author: jrm
 """
-import pytest
-import json
 import os
 from contextlib import contextmanager
-from enamlnativecli.main import sh, shprint, cd
+
+import pytest
+
+from enamlnativecli.main import cd, sh, shprint
 
 
 @contextmanager
@@ -49,8 +50,8 @@ def test_check_venv_active(capsys):
 
 
 def test_create_app(capsys):
-    if not os.path.exists('tmp'):
-        os.makedirs('tmp')
+    if not os.path.exists("tmp"):
+        os.makedirs("tmp")
     with cd("tmp"):
         if os.path.exists("HelloWorld"):
             sh.rm("-r", "HelloWorld")
@@ -73,7 +74,7 @@ def test_build_app(capsys):
             shprint(cmd, "build-android", _debug=True)
 
 
-#def test_create_lib():
+# def test_create_lib():
 #    if os.path.exists("tmp/enaml-native-test"):
 #        sh.rm("-R", "tmp/enaml-native-test")
 #    cmd = sh.Command("enaml-native")

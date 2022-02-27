@@ -7,6 +7,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10']
+        nkd-version: ['23.1.7779620']
     steps:
       - uses: actions/checkout@v2
       - name: Setup python ${{ matrix.python-version}}
@@ -18,7 +19,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
       - name: Install test dependencies
-        run: pip install -U atom enaml torando msgpack-python codecov pytest pytest-cov pytest-asyncio
+        run: pip install -U atom enaml tornado msgpack codecov pytest pytest-cov pytest-asyncio
       - name: Install cli
         run: |
             pip install --user git+https://github.com/codelv/enaml-native-cli.git
@@ -29,8 +30,20 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+      - name: Setup Android NDK
+        run: |
+            export ANDROID_HOME="$HOME/Android/Sdk"
+            export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
+            export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
+            mkdir -p $ANDROID_HOME
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
+            unzip commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
+            mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+            yes | sdkmanager --licenses
+            yes | sdkmanager tools
+            yes | sdkmanager platform-tools
+            yes | sdkmanager ndk-bundle
+            yes | sdkmanager "ndk;${{ matrix.ndk-version}}"
       - name: Install android system image and emulator
         run: |
           sdkmanager --list
