@@ -38,11 +38,10 @@ output = conda("env", "list", "--json")
 data = json.loads(str(output.stdout if IS_WIN else output))
 
 # Create a symlink from app/venv folder to the conda env
-env_name = "{{ cookiecutter.app_name.lower().replace(" ", " ") }}"
+env_name = "{{ cookiecutter.project_name.lower().replace(" ", "") }}"
 for path in data["envs"]:
     if os.path.split(path)[-1] == env_name:
         os.symlink(path, "venv")
         break
 if not os.path.exists("venv"):
-    print("Could not create a link to the env!")
-    sys.exit(1)
+    print(f"WARNING: Could not create a link to the env '{env_name}'!")
