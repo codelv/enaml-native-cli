@@ -1,9 +1,11 @@
 from enaml.core.api import Include
+from enaml.application import Application
 from enamlnative.widgets.api import Activity, Window
 from view import MainWindow
 
 
 enamldef MainActivity(Activity):
+    attr app: Application = Application.instance()
     attr window: Window = MainWindow()
     on_back_pressed => ():
         return False
