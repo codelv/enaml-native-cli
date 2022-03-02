@@ -370,7 +370,9 @@ class MakePipRecipe(Command):
             meta["build"]["noarch"] = True
 
             # Update the script to install for every arch
-            script = meta["build"].pop("script", "").replace("{{ PYTHON }}", "python")
+            script = meta["build"].pop("script", "")
+            if isinstance(script, str):
+                script = script.replace("{{ PYTHON }}", "python")
             build_script = ["export CC=/bin/false", "export CXX=/bin/false"]
             build_script += [
                 f"{script} --no-compile " f"--target=$PREFIX/{p}/python/site-packages "
@@ -1354,7 +1356,7 @@ class RunAndroid(Command):
             if IS_WIN:
                 gradlew = sh.Command("gradlew.bat")
             else:
-                gradlew = sh.Command("chmod 755 gradlew")
+                sh.chmod("755", "gradlew")
                 gradlew = sh.Command("./gradlew")
 
             #: If no devices are connected, start the simulator
