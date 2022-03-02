@@ -1724,7 +1724,15 @@ class EnamlNativeCli(Atom):
         app.
 
         """
-        return exists(self.package)
+        if exists(self.package):
+            # Look for enaml-native specific sections
+            try:
+                with open(self.package) as f:
+                    ctx = dict(yaml.load(f, Loader=yaml.RoundTripLoader))
+                    return "ios" in ctx or "android" in ctx
+            except Exception as e:
+                print_color(Colors.RED, f"Could not load environment.yml: {e}")
+        return False
 
     def _default_ctx(self):
         """Return the package config or context and normalize some of the
@@ -1732,7 +1740,10 @@ class EnamlNativeCli(Atom):
 
         """
         if not self.in_app_directory:
-            print(f"Warning: {self.package} does not exist. Using the default.")
+            print(
+                f"Warning: {self.package} is missing or not an "
+                "enaml-native env. Using the default."
+            )
             ctx = {}
 
         else:
