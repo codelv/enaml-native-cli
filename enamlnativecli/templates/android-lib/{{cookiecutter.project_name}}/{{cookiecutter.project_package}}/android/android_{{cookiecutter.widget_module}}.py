@@ -7,14 +7,20 @@ The full license is in the file COPYING.txt, distributed with this software.
 
 """
 from atom.api import Bool, Dict, Instance, Typed, set_default
+
 #from enamlnative.android.android_toolkit_object import AndroidToolkitObject
 from enamlnative.android.android_view import AndroidView
-from enamlnative.android.bridge import (JavaBridgeObject, JavaCallback,
-                                        JavaMethod, JavaProxy,
-                                        JavaStaticMethod)
+from enamlnative.android.bridge import (
+    JavaBridgeObject,
+    JavaCallback,
+    JavaMethod,
+    JavaProxy,
+    JavaStaticMethod,
+)
 from enamlnative.core import bridge
-from {{cookiecutter.project_package}}.widgets.{{cookiecutter.widget_module}} import \
-    Proxy{{cookiecutter.widget_name}}
+from {{cookiecutter.project_package}}.widgets.{{cookiecutter.widget_module}} import (
+    Proxy{{cookiecutter.widget_name}},
+)
 
 
 class {{cookiecutter.widget_name}}(AndroidView):

@@ -44,7 +44,7 @@ excluded:
   - lib.termios.so
   - lib.mmap*
   - lib._hotshot.so
-  - lib._ssl.so
+  #- lib._ssl.so
   - lib._sqlite3.so
   - lib.pyexpat.so
   - lib.strop.so

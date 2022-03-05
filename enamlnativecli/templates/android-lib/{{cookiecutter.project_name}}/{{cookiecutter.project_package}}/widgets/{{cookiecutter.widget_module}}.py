@@ -8,6 +8,7 @@ The full license is in the file COPYING.txt, distributed with this software.
 """
 from atom.api import ForwardTyped, Typed
 from enaml.core.declarative import d_, observe
+
 # Use these if your widget subclasses android.view.View
 from enamlnative.widget.view import ProxyView, View
 

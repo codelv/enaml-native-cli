@@ -166,6 +166,8 @@ def shprint(cmd, *args, **kwargs):
 
     buf = []
     for c in cmd(*args, **kwargs):
+        if isinstance(c, bytes):
+            c = f"{c}"
         if debug:
             write(c)
             if c in ["\r", "\n"]:

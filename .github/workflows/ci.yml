@@ -39,7 +39,7 @@ jobs:
             wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
             unzip commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
             mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-            yes | sdkmanager --licenses
+            yes | sdkmanager --licenses > /dev/null
             yes | sdkmanager --install tools
             yes | sdkmanager --install platform-tools
             yes | sdkmanager --install ndk-bundle
