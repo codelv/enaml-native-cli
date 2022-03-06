@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
-      - name: Setup Android NDK
+      - name: Setup Android NDK and emulator
         run: |
           export ANDROID_HOME="$HOME/Android/Sdk"
           export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
@@ -42,20 +42,10 @@ jobs:
           sdkmanager --install tools
           sdkmanager --install platform-tools
           sdkmanager --install "ndk;23.1.7779620"
-      - name: Install android system image and emulator
-        run: |
-          export PATH="$PATH:$HOME/Android/Sdk/cmdline-tools/latest/bin"
-          sdkmanager --list
           sdkmanager --install "system-images;android-30;google_apis;x86_64"
           sdkmanager --install "emulator"
-      - name: Create avd
-        run: |
-          export PATH="$PATH:$HOME/Android/Sdk/cmdline-tools/latest/bin"
           echo no | avdmanager create avd --force --name test -k "system-images;android-30;google_apis;x86_64"
           avdmanager list avd
-      - name: Start emulator
-        run: |
-          export PATH="$PATH:$HOME/Android/Sdk/emulator"
           emulator -avd test -no-audio -no-window -no-accel &
           timeout 300 adb wait-for-device
           adb devices
