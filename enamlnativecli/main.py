@@ -1617,8 +1617,7 @@ class Server(Command):
     def on_open(self, handler):
         self._reload_count = 0
         print_color(
-            Colors.CYAN,
-            f"[INFO ] Client {handler.request.remote_ip} connected!"
+            Colors.CYAN, f"[INFO ] Client {handler.request.remote_ip} connected!"
         )
         self.handlers.append(handler)
 
@@ -1645,10 +1644,7 @@ class Server(Command):
             h.write_message(msg)
 
     def on_close(self, handler):
-        print_color(
-            Colors.RED,
-            f"[INFO ] Client {handler.request.remote_ip} left!"
-        )
+        print_color(Colors.RED, f"[INFO ] Client {handler.request.remote_ip} left!")
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):
