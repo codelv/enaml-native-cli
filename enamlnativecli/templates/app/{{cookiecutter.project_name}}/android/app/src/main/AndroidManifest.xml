@@ -49,6 +49,9 @@
     <!-- If using LocationManager this is required.
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />  -->
 
+    <!-- If using VibrationService this is required.
+    <uses-permission android:name="android.permission.VIBRATE"/> -->
+
     <!-- If using UsbManager this is required.
     <uses-feature android:name="android.hardware.usb.host" /> -->
 
