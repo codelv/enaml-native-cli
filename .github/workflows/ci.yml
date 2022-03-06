@@ -33,7 +33,7 @@ jobs:
         run: |
           export ANDROID_HOME="$HOME/Android/Sdk"
           export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
+          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools"
           mkdir -p $ANDROID_HOME
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
           unzip -e commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
