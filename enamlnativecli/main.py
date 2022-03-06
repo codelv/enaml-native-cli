@@ -1484,9 +1484,10 @@ class Server(Command):
 
     args = [
         (
-            "--remote-debugging",
+            "-r, --remote-debugging",
             dict(action="store_true", help="Run in remote debugging mode"),
         ),
+        ("-p, --port", dict(help="Port to use (default is 8888)", default="8888")),
     ]
 
     #: Server port
@@ -1524,7 +1525,9 @@ class Server(Command):
 
     def run(self, args=None):
         #: Save setting
-        self.remote_debugging = args and args.remote_debugging
+        if args:
+            self.port = int(args.port)
+            self.remote_debugging = args.remote_debugging
         with cd("src"):
             if not self.remote_debugging:
                 self.setup_watchdog(args)
@@ -1549,7 +1552,7 @@ class Server(Command):
                 server.loop.add_callback(server.on_file_changed, event)
 
         src_dir = abspath(".")
-        print(f"Watching {src_dir}")
+        print(f"[INFO ] Watching for changes in: {src_dir}")
         watcher = self.watcher = AppNotifier()
         observer = self.observer = Observer()
         observer.schedule(watcher, src_dir, recursive=True)
@@ -1605,7 +1608,7 @@ class Server(Command):
         )
         app.listen(self.port)
         forwarder.start()
-        print(f"Tornado Dev server started on {self.port}")
+        print(f"[INFO ] enaml-native dev server started on {self.port}")
         self.loop.start()
 
     #: ========================================================
@@ -1613,7 +1616,10 @@ class Server(Command):
     #: ========================================================
     def on_open(self, handler):
         self._reload_count = 0
-        print(f"Client {handler.request.remote_ip} connected!")
+        print_color(
+            Colors.CYAN,
+            f"[INFO ] Client {handler.request.remote_ip} connected!"
+        )
         self.handlers.append(handler)
 
     def on_message(self, handler, msg):
@@ -1639,7 +1645,10 @@ class Server(Command):
             h.write_message(msg)
 
     def on_close(self, handler):
-        print(f"Client {handler.request.remote_ip} left!")
+        print_color(
+            Colors.RED,
+            f"[INFO ] Client {handler.request.remote_ip} left!"
+        )
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):

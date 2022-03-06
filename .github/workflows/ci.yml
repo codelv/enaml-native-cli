@@ -6,8 +6,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10']
-        ndk-version: ['23.1.7779620']
+        python-version: ['3.10']
     steps:
       - uses: actions/checkout@v2
       - name: Setup python ${{ matrix.python-version}}
@@ -37,13 +36,12 @@ jobs:
             export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
             mkdir -p $ANDROID_HOME
             wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
-            unzip commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
+            unzip -e commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
             mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
             yes | sdkmanager --licenses > /dev/null
-            yes | sdkmanager --install tools
-            yes | sdkmanager --install platform-tools
-            yes | sdkmanager --install ndk-bundle
-            yes | sdkmanager --install "ndk;${{ matrix.ndk-version}}"
+            sdkmanager --install tools
+            sdkmanager --install platform-tools
+            sdkmanager --install "ndk;23.1.7779620"
       - name: Install android system image and emulator
         run: |
           sdkmanager --list
@@ -67,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ['3.10']
     steps:
       - uses: actions/checkout@v2
       - name: Setup python ${{ matrix.python-version}}
