@@ -26,7 +26,7 @@ from glob import glob
 from os.path import abspath, dirname, exists, expanduser, join
 from typing import ClassVar
 
-from atom.api import Atom, Bool, Callable, Dict, Float, Instance, Int, List, Str
+from atom.api import Atom, Bool, Dict, Float, Instance, Int, List, Str, Value
 from cookiecutter.log import configure_logger
 from cookiecutter.main import cookiecutter
 from pkg_resources import iter_entry_points
@@ -121,18 +121,18 @@ class Colors:
 @contextmanager
 def cd(newdir: str):
     prevdir = os.getcwd()
-    print(f"[DEBUG]:   -> running cd {newdir}")
+    print(f"[DEBUG] cd {newdir}")
     os.chdir(os.path.expanduser(newdir))
     try:
         yield
     finally:
-        print(f"[DEBUG]:   -> running  cd {prevdir}")
+        print(f"[DEBUG] cd {prevdir}")
         os.chdir(prevdir)
 
 
 def cp(src: str, dst: str):
     """Like cp -R src dst"""
-    print(f"[DEBUG]:   -> copying {src} to {dst}")
+    print(f"[DEBUG] copying {src} to {dst}")
     if os.path.isfile(src):
         if not exists(dirname(dst)):
             os.makedirs(dirname(dst))
@@ -148,7 +148,7 @@ def shprint(cmd, *args, **kwargs):
     kwargs.update({"_err_to_out": True, "_out_bufsize": 0, "_iter": True})
 
     arg_list = " ".join([a for a in args if not isinstance(a, sh.RunningCommand)])
-    print_color(Colors.CYAN, f"[INFO]:   -> running  {cmd} {arg_list}")
+    print_color(Colors.CYAN, f"[INFO ] running  {cmd} {arg_list}")
 
     if IS_WIN:
         kwargs.pop("_out_bufsize")
@@ -157,7 +157,7 @@ def shprint(cmd, *args, **kwargs):
         process = cmd(*args, **kwargs).process
         for c in iter(lambda: process.stdout.read(1), ""):
             write(c.decode("utf-8"))
-            if c in ["\r", "\n"]:
+            if c == "\r" or c == "\n":
                 flush()
             if not c:
                 break
@@ -165,19 +165,20 @@ def shprint(cmd, *args, **kwargs):
         return
 
     buf = []
-    for c in cmd(*args, **kwargs):
-        if isinstance(c, bytes):
+    if debug:
+        for c in cmd(*args, **kwargs):
             c = f"{c}"
-        if debug:
             write(c)
-            if c in ["\r", "\n"]:
+            if c == "\r" or c == "\n":
                 flush()
-        else:
-            if c in ["\r", "\n"]:
+    else:
+        for c in cmd(*args, **kwargs):
+            c = f"{c}"
+            if c == "\r" or c == "\n":
                 msg = "".join(buf)
                 color = Colors.RED if "error" in msg else Colors.RESET
                 write(
-                    "{}\r[DEBUG]:       {:<{w}}{}".format(
+                    "{}\r[DEBUG]       {:<{w}}{}".format(
                         color, msg, Colors.RESET, w=100
                     )
                 )
@@ -278,7 +279,7 @@ class Create(Command):
             overwrite_if_exists=args.overwrite_if_exists,
         )
         item = args.what.title()
-        print_color(Colors.GREEN, f"[INFO] {item} created successfully!")
+        print_color(Colors.GREEN, f"[INFO ] {item} created successfully!")
 
 
 class BuildRecipe(Command):
@@ -377,7 +378,7 @@ class MakePipRecipe(Command):
                 script = script.replace("{{ PYTHON }}", "python")
             build_script = ["export CC=/bin/false", "export CXX=/bin/false"]
             build_script += [
-                f"{script} --no-compile " f"--target=$PREFIX/{p}/python/site-packages "
+                f"{script} --no-compile --target=$PREFIX/{p}/python/site-packages "
                 for p in [
                     "android/arm",
                     "android/arm64",
@@ -1496,19 +1497,16 @@ class Server(Command):
     _reload_count = Int()  #: Pending reload requests
 
     #: Watchdog  observer
-    observer = Instance(object)
+    observer = Value()
 
     #: Watchdog handler
-    watcher = Instance(object)
+    watcher = Value()
+
+    #: IOLoop
+    loop = Value()
 
     #: Websocket handler implementation
     handlers = List()
-
-    #: Callable to add a callback from a thread into the event loop
-    add_callback = Callable()
-
-    #: Callable to add a callback at some later time
-    call_later = Callable()
 
     #: Changed file events
     changes = List()
@@ -1519,93 +1517,103 @@ class Server(Command):
     #: Can be run from anywhere
     app_dir_required = False
 
+    def _default_loop(self):
+        from tornado.ioloop import IOLoop
+
+        return IOLoop.current()
+
     def run(self, args=None):
         #: Save setting
         self.remote_debugging = args and args.remote_debugging
-
-        if self.remote_debugging:
-            #: Do reverse forwarding so you can use remote-debugging over
-            #: adb (via USB even if Wifi is not accessible)
-            shprint(
-                sh.adb,
-                "reverse",
-                f"tcp:{self.port}",
-                f"tcp:{self.port}",
-            )
-        else:
-            #: Setup observer
-            try:
-                from watchdog.events import LoggingEventHandler
-                from watchdog.observers import Observer
-            except ImportError:
-                msg = "[WARNING] Watchdog is required the dev server: Run 'pip install watchdog'"
-                print_color(Colors.RED, msg)
-                return
-            self.observer = Observer()
-            server = self
-
-            class AppNotifier(LoggingEventHandler):
-                def on_any_event(self, event):
-                    super(AppNotifier, self).on_any_event(event)
-                    #: Use add callback to push to event loop thread
-                    server.add_callback(server.on_file_changed, event)
-
         with cd("src"):
             if not self.remote_debugging:
-                src_dir = abspath(".")
-                print(f"Watching {src_dir}")
-                self.watcher = AppNotifier()
-                self.observer.schedule(self.watcher, src_dir, recursive=True)
-                self.observer.start()
+                self.setup_watchdog(args)
+            self.start_server(args)
 
-            self.run_tornado(args)
+    def setup_watchdog(self, args):
+        try:
+            from watchdog.events import LoggingEventHandler
+            from watchdog.observers import Observer
+        except ImportError:
+            msg = "[WARNING] Watchdog is required the dev server: Run 'pip install watchdog'"
+            print_color(Colors.RED, msg)
+            raise
 
-    def run_tornado(self, args):
+        # Avoid self in nested class
+        server = self
+
+        class AppNotifier(LoggingEventHandler):
+            def on_any_event(self, event):
+                super().on_any_event(event)
+                #: Use add callback to push to event loop thread
+                server.loop.add_callback(server.on_file_changed, event)
+
+        src_dir = abspath(".")
+        print(f"Watching {src_dir}")
+        watcher = self.watcher = AppNotifier()
+        observer = self.observer = Observer()
+        observer.schedule(watcher, src_dir, recursive=True)
+        observer.start()
+
+    def start_forwarding(self):
+        #: Do reverse forwarding so you can use remote-debugging over
+        #: adb (via USB even if Wifi is not accessible)
+        args = ("reverse", f"tcp:{self.port}", f"tcp:{self.port}")
+        try:
+            sh.adb(*args)
+        except Exception:
+            pass
+
+    def start_server(self, args):
         """Tornado dev server implementation"""
         server = self
-        import tornado.ioloop
-        import tornado.web
-        import tornado.websocket
+        try:
+            from tornado.ioloop import PeriodicCallback
+            from tornado.web import Application, RequestHandler
+            from tornado.websocket import WebSocketHandler
+        except ImportError:
+            msg = "[WARNING] tornado is required the dev server: Run 'pip install tornado'"
+            print_color(Colors.RED, msg)
+            raise
 
-        ioloop = tornado.ioloop.IOLoop.current()
+        # Keep running adb reverse so it reconnects if the device goes away
+        forwarder = PeriodicCallback(self.start_forwarding, 3000)
 
-        class DevWebSocketHandler(tornado.websocket.WebSocketHandler):
+        class DevWebSocketHandler(WebSocketHandler):
             def open(self):
-                super(DevWebSocketHandler, self).open()
+                super().open()
+                forwarder.stop()
                 server.on_open(self)
 
             def on_message(self, message):
                 server.on_message(self, message)
 
             def on_close(self):
-                super(DevWebSocketHandler, self).on_close()
+                super().on_close()
+                forwarder.start()
                 server.on_close(self)
 
-        class MainHandler(tornado.web.RequestHandler):
+        class MainHandler(RequestHandler):
             def get(self):
                 self.write(server.index_page)
 
-        #: Set the call later method
-        server.call_later = ioloop.call_later
-        server.add_callback = ioloop.add_callback
-
-        app = tornado.web.Application(
+        app = Application(
             [
                 (r"/", MainHandler),
                 (r"/dev", DevWebSocketHandler),
             ]
         )
-
         app.listen(self.port)
+        forwarder.start()
         print(f"Tornado Dev server started on {self.port}")
-        ioloop.start()
+        self.loop.start()
 
     #: ========================================================
     #: Shared protocol implementation
     #: ========================================================
     def on_open(self, handler):
         self._reload_count = 0
-        print(f"Client {handler} connected!")
+        print(f"Client {handler.request.remote_ip} connected!")
         self.handlers.append(handler)
 
     def on_message(self, handler, msg):
@@ -1631,12 +1639,12 @@ class Server(Command):
             h.write_message(msg)
 
     def on_close(self, handler):
-        print(f"Client {handler} left!")
+        print(f"Client {handler.request.remote_ip} left!")
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):
         """ """
-        print(event)
+        # print(event)
         self._reload_count += 1
         self.changes.append(event)
         self.call_later(self.reload_delay, self._trigger_reload, event)
