@@ -75,7 +75,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: pip install -U mypy black isort flake8
+        run: pip install -U mypy black isort flake8 types-setuptools
       - name: Run checks
         run: |
             isort enamlnativecli --check --diff
