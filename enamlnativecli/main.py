@@ -1652,7 +1652,7 @@ class Server(Command):
         # print(event)
         self._reload_count += 1
         self.changes.append(event)
-        self.call_later(self.reload_delay, self._trigger_reload, event)
+        self.loop.call_later(self.reload_delay, self._trigger_reload, event)
 
     def _trigger_reload(self, event):
         self._reload_count -= 1
