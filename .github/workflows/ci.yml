@@ -84,6 +84,6 @@ jobs:
             black tests --check --diff
             flake8 --ignore=E501 enamlnativecli --per-file-ignores=enamlnativecli/templates/*:E999
             flake8 --ignore=E501 tests
-            mypy enamlnativecli --ignore-missing-imports
+            mypy enamlnativecli/main.py --ignore-missing-imports
 
 
