@@ -143,9 +143,9 @@ def cp(src: str, dst: str):
 
 def shprint(cmd, *args, **kwargs):
     debug = kwargs.pop("_debug", True)
-
+    bufsize = kwargs.pop("_out_bufsize", 0)
     write, flush = sys.stdout.write, sys.stdout.flush
-    kwargs.update({"_err_to_out": True, "_out_bufsize": 0, "_iter": True})
+    kwargs.update({"_err_to_out": True, "_out_bufsize": bufsize, "_iter": True})
 
     arg_list = " ".join([a for a in args if not isinstance(a, sh.RunningCommand)])
     print_color(Colors.CYAN, f"[INFO ] running  {cmd} {arg_list}")
@@ -1512,6 +1512,8 @@ class Server(Command):
     #: Changed file events
     changes = List()
 
+    filetypes_to_watch = List(default=[".py", ".enaml"])
+
     #: Run in bridge (forwarding) mode for remote debugging
     remote_debugging = Bool()
 
@@ -1616,10 +1618,14 @@ class Server(Command):
     #: ========================================================
     def on_open(self, handler):
         self._reload_count = 0
-        print_color(
-            Colors.CYAN, f"[INFO ] Client {handler.request.remote_ip} connected!"
-        )
+        ip = handler.request.remote_ip
+        print_color(Colors.CYAN, f"[INFO ] Client {ip} connected!")
         self.handlers.append(handler)
+
+        # If channges occured while disconnected, send now
+        if self.changes:
+            self._reload_count = 1
+            self._trigger_reload()
 
     def on_message(self, handler, msg):
         """In remote debugging mode this simply acts as a forwarding
@@ -1644,38 +1650,67 @@ class Server(Command):
             h.write_message(msg)
 
     def on_close(self, handler):
-        print_color(Colors.RED, f"[INFO ] Client {handler.request.remote_ip} left!")
+        ip = handler.request.remote_ip
+        print_color(Colors.RED, f"[INFO ] Client {ip} left!")
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):
-        """ """
-        # print(event)
-        self._reload_count += 1
+        """ Save change event and trigger a reload after a delay """
+        ext = os.path.splitext(event.src_path)[-1]
+        if ext not in self.filetypes_to_watch:
+            return  # Ignored
+
         self.changes.append(event)
-        self.loop.call_later(self.reload_delay, self._trigger_reload, event)
+        if not self.handlers:
+            print(f"[DEBUG] {event.src_path} changed, waiting for device...")
+            return
+        print(f"[DEBUG] {event.src_path} changed!")
+        self._reload_count += 1
+        self.loop.call_later(self.reload_delay, self._trigger_reload)
 
-    def _trigger_reload(self, event):
-        self._reload_count -= 1
-        if self._reload_count == 0:
-            files = {}
-            for event in self.changes:
-                path = os.path.relpath(event.src_path, os.getcwd())
-                if os.path.splitext(path)[-1] not in [".py", ".enaml"]:
-                    continue
-                with open(event.src_path) as f:
-                    data = f.read()
+    def _trigger_reload(self):
+        self._reload_count = max(0, self._reload_count - 1)
+        if self._reload_count > 0:
+            return
+        files = {}
+        for event in self.changes:
+            path = os.path.relpath(event.src_path, os.getcwd())
+            with open(event.src_path) as f:
+                data = f.read()
 
-                #: Add to changed files
-                files[path] = data
+            #: Add to changed files
+            files[path] = data
 
-            if files:
-                #: Send the reload request
-                msg = {"type": "reload", "files": files}
-                print(f"Reloading: {files.keys()}")
-                self.send_message(json.dumps(msg))
+        if files:
+            #: Send the reload request
+            msg = {"type": "reload", "files": files}
+            print(f"Reloading: {tuple(files.keys())}")
+            self.send_message(json.dumps(msg))
 
-            #: Clear changes
-            self.changes = []
+        #: Clear changes
+        self.changes = []
+
+
+class Logcat(Command):
+    """ Run logcat and restart if device disconnects (eg unplugged) """
+
+    title = "logcat"
+    help = "Run logcat in a loop"
+    app_dir_required = False
+    app_env_required = False
+
+    def run(self, args=None):
+        while True:
+            try:
+                shprint(sh.adb, "wait-for-device")
+            except KeyboardInterrupt:
+                break
+            try:
+                # Set bufsize
+                shprint(sh.adb, "logcat", _out_bufsize=64)
+            except KeyboardInterrupt:
+                break
+        print("\nDone")
 
 
 def find_commands(cls):
