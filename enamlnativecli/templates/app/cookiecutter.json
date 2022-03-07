@@ -14,10 +14,10 @@
   "user_home": "/home/<username>/",
   "android_sdk": "{{ cookiecutter.user_home}}/Android/Sdk/",
   "android_ndk": "{{ cookiecutter.android_sdk}}ndk",
-  "android_ndk_version": "24.0.7956693",
+  "android_ndk_version": "23.1.7779620",
   "android_build_tools_version": "32.0.0",
   "android_sdk_version": "32",
-  "android_min_sdk_version": "21",
+  "android_min_sdk_version": "24",
   "android_target_sdk_version": "32",
   "google_maps_api_key": "none",
   "_copy_without_render": ["android/gradlew", "android/gradlew.bat"]
