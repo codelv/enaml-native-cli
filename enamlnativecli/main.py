@@ -664,7 +664,7 @@ class BundleAssets(Command):
             #: Copy python/ build/
             cp(
                 "{conda_prefix}/{target}/python/".format(**cfg),
-                "{python_build_dir}/build".format(**cfg),
+                "{python_build_dir}/build/python".format(**cfg),
             )
 
             #: Copy sources from app source
@@ -1558,6 +1558,14 @@ class Server(Command):
         watcher = self.watcher = AppNotifier()
         observer = self.observer = Observer()
         observer.schedule(watcher, src_dir, recursive=True)
+        # Follow symlinks
+        for f in os.listdir(src_dir):
+            path = join(src_dir, f)
+            if os.path.islink(path) and os.path.isdir(path):
+                path = os.path.realpath(path)
+                print(f"[INFO ] Watching for changes in: {path}")
+                observer.schedule(watcher, path, recursive=True)
+
         observer.start()
 
     def start_forwarding(self):
@@ -1582,7 +1590,7 @@ class Server(Command):
             raise
 
         # Keep running adb reverse so it reconnects if the device goes away
-        forwarder = PeriodicCallback(self.start_forwarding, 3000)
+        forwarder = PeriodicCallback(self.start_forwarding, 1000)
 
         class DevWebSocketHandler(WebSocketHandler):
             def open(self):
