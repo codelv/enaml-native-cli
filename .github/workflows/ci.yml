@@ -29,23 +29,21 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
-      - name: Setup Android NDK and emulator
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+      - name: Install android system image and emulator
         run: |
-          export ANDROID_HOME="$HOME/Android/Sdk"
-          export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
-          mkdir -p $ANDROID_HOME
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
-          unzip -e commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
-          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager --install tools
-          sdkmanager --install platform-tools
-          sdkmanager --install "ndk;23.1.7779620"
+          sdkmanager --list
           sdkmanager --install "system-images;android-30;google_apis;x86_64"
           sdkmanager --install "emulator"
+          sdkmanager --install "ndk;23.1.7779620"
+      - name: Create avd
+        run: |
           echo no | avdmanager create avd --force --name test -k "system-images;android-30;google_apis;x86_64"
           avdmanager list avd
+      - name: Start emulator
+        run: |
+          export PATH="$PATH:$ANDROID_HOME/emulator"
           emulator -avd test -no-audio -no-window -no-accel &
           timeout 300 adb wait-for-device
           adb devices
