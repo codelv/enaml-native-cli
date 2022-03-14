@@ -21,9 +21,10 @@ def source_activated(venv, command):
 
     def cmd(*args, **kwargs):
         #: Make a wrapper to a that runs it in the venv
+        activate = f"conda activate {venv}"
         return sh.bash(
             "-c",
-            f"source activate {venv} && {command} {' '.join(args)}",
+            f"{activate} && {command} {' '.join(args)}",
             **kwargs,
         )
 
