@@ -69,6 +69,19 @@ if IS_WIN:
 else:
     import sh  # type: ignore
 
+    ANDROID_SDK = os.environ.get(
+        "ANDROID_SDK_ROOT", os.path.expanduser("~/Android/Sdk")
+    )
+
+
+ANDROID_ABIS = {
+    "x86_64": "x86_64",
+    "x86": "x86",
+    "armeabi-v7a": "arm",
+    "arm64-v8a": "arm64",
+}
+ANDROID_TARGETS = {v: k for k, v in ANDROID_ABIS.items()}
+
 
 def print_color(color, msg):
     print(f"{color}{msg}{Colors.RESET}")
@@ -187,15 +200,6 @@ def shprint(cmd, *args, **kwargs):
     flush()
 
 
-ANDROID_ABIS = {
-    "x86_64": "x86_64",
-    "x86": "x86",
-    "armeabi-v7a": "arm",
-    "arm64-v8a": "arm64",
-}
-ANDROID_TARGETS = {v: k for k, v in ANDROID_ABIS.items()}
-
-
 class Command(Atom):
     _instance = None
     #: Subcommand name ex enaml-native <name>
@@ -262,7 +266,7 @@ class Create(Command):
             stream_level="DEBUG" if args.verbose else "INFO",
             debug_file=None,
         )
-        ndk_dir = os.path.expanduser("~/Android/Sdk/ndk/")
+        ndk_dir = join(ANDROID_SDK, "ndk")
         ndks = [join(ndk_dir, it) for it in os.listdir(ndk_dir)]
         ndks.sort()
         cookiecutter(
