@@ -1855,7 +1855,8 @@ class EnamlNativeCli(Atom):
     def check_dependencies(self):
         try:
             info = json.loads(str(self.conda("info", "--json")))
-            self.in_app_env = info["active_prefix_name"] != "base"
+            base_envs = ("base", "test")
+            self.in_app_env = info["active_prefix_name"] not in base_envs
             self.conda_env_info = info
         except Exception:
             raise EnvironmentError(
