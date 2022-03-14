@@ -22,14 +22,25 @@
 
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTask"
             android:exported="true"
             android:configChanges="orientation|keyboardHidden|screenSize"
+            android:windowSoftInputMode="adjustResize"
             >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- If you want your app to be notified when a UsbDevice is connected this is required.
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                       android:resource="@xml/device_filter" />
+                -->
         </activity>
     </application>
 
@@ -38,6 +49,12 @@
 
     <!-- If using LocationManager this is required.
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />  -->
+
+    <!-- If using VibrationService this is required.
+    <uses-permission android:name="android.permission.VIBRATE"/> -->
+
+    <!-- If using UsbManager this is required.
+    <uses-feature android:name="android.hardware.usb.host" /> -->
 
     <!-- To load images from local folders like DCIM or Pictures,
          you’ll need to add the READ_EXTERNAL_STORAGE permission

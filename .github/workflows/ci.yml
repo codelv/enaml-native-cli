@@ -6,7 +6,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ['3.10']
     steps:
       - uses: actions/checkout@v2
       - name: Setup python ${{ matrix.python-version}}
@@ -18,7 +18,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
       - name: Install test dependencies
-        run: pip install -U atom enaml torando msgpack-python codecov pytest pytest-cov pytest-asyncio
+        run: pip install -U atom enaml tornado msgpack codecov pytest pytest-cov pytest-asyncio
       - name: Install cli
         run: |
             pip install --user git+https://github.com/codelv/enaml-native-cli.git
@@ -29,20 +29,23 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-      - name: Install android system image and emulator
+      - name: Setup Android NDK and emulator
         run: |
-          sdkmanager --list
+          export ANDROID_HOME="$HOME/Android/Sdk"
+          export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
+          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+          mkdir -p $ANDROID_HOME
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
+          unzip -e commandlinetools-linux-8092744_latest.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager --install tools
+          sdkmanager --install platform-tools
+          sdkmanager --install "ndk;23.1.7779620"
           sdkmanager --install "system-images;android-30;google_apis;x86_64"
           sdkmanager --install "emulator"
-      - name: Create avd
-        run: |
           echo no | avdmanager create avd --force --name test -k "system-images;android-30;google_apis;x86_64"
           avdmanager list avd
-      - name: Start emulator
-        run: |
-          export PATH="$PATH:$ANDROID_HOME/emulator"
           emulator -avd test -no-audio -no-window -no-accel &
           timeout 300 adb wait-for-device
           adb devices
@@ -54,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ['3.10']
     steps:
       - uses: actions/checkout@v2
       - name: Setup python ${{ matrix.python-version}}
@@ -62,7 +65,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: pip install -U mypy black isort flake8
+        run: pip install -U mypy black isort flake8 types-setuptools
       - name: Run checks
         run: |
             isort enamlnativecli --check --diff
@@ -71,6 +74,6 @@ jobs:
             black tests --check --diff
             flake8 --ignore=E501 enamlnativecli --per-file-ignores=enamlnativecli/templates/*:E999
             flake8 --ignore=E501 tests
-            mypy enamlnativecli --ignore-missing-imports
+            mypy enamlnativecli/main.py --ignore-missing-imports
 
 

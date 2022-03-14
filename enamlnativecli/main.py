@@ -1,15 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Copyright (c) 2017, Jairus Martin.
+Copyright (c) 2017-2022, Jairus Martin and contributors.
 
 Distributed under the terms of the GPLv3 License.
 
 The full license is in the file COPYING.txt, distributed with this software.
 
 Created on July 10, 2017
-
-@author: jrm
 """
 import compileall
 import fnmatch
@@ -26,7 +23,7 @@ from glob import glob
 from os.path import abspath, dirname, exists, expanduser, join
 from typing import ClassVar
 
-from atom.api import Atom, Bool, Callable, Dict, Float, Instance, Int, List, Str
+from atom.api import Atom, Bool, Dict, Float, Instance, Int, List, Str, Value
 from cookiecutter.log import configure_logger
 from cookiecutter.main import cookiecutter
 from pkg_resources import iter_entry_points
@@ -121,18 +118,18 @@ class Colors:
 @contextmanager
 def cd(newdir: str):
     prevdir = os.getcwd()
-    print(f"[DEBUG]:   -> running cd {newdir}")
+    print(f"[DEBUG] cd {newdir}")
     os.chdir(os.path.expanduser(newdir))
     try:
         yield
     finally:
-        print(f"[DEBUG]:   -> running  cd {prevdir}")
+        print(f"[DEBUG] cd {prevdir}")
         os.chdir(prevdir)
 
 
 def cp(src: str, dst: str):
     """Like cp -R src dst"""
-    print(f"[DEBUG]:   -> copying {src} to {dst}")
+    print(f"[DEBUG] copying {src} to {dst}")
     if os.path.isfile(src):
         if not exists(dirname(dst)):
             os.makedirs(dirname(dst))
@@ -143,12 +140,12 @@ def cp(src: str, dst: str):
 
 def shprint(cmd, *args, **kwargs):
     debug = kwargs.pop("_debug", True)
-
+    bufsize = kwargs.pop("_out_bufsize", 0)
     write, flush = sys.stdout.write, sys.stdout.flush
-    kwargs.update({"_err_to_out": True, "_out_bufsize": 0, "_iter": True})
+    kwargs.update({"_err_to_out": True, "_out_bufsize": bufsize, "_iter": True})
 
     arg_list = " ".join([a for a in args if not isinstance(a, sh.RunningCommand)])
-    print_color(Colors.CYAN, f"[INFO]:   -> running  {cmd} {arg_list}")
+    print_color(Colors.CYAN, f"[INFO ] running  {cmd} {arg_list}")
 
     if IS_WIN:
         kwargs.pop("_out_bufsize")
@@ -157,7 +154,7 @@ def shprint(cmd, *args, **kwargs):
         process = cmd(*args, **kwargs).process
         for c in iter(lambda: process.stdout.read(1), ""):
             write(c.decode("utf-8"))
-            if c in ["\r", "\n"]:
+            if c == "\r" or c == "\n":
                 flush()
             if not c:
                 break
@@ -165,17 +162,20 @@ def shprint(cmd, *args, **kwargs):
         return
 
     buf = []
-    for c in cmd(*args, **kwargs):
-        if debug:
+    if debug:
+        for c in cmd(*args, **kwargs):
+            c = f"{c}"
             write(c)
-            if c in ["\r", "\n"]:
+            if c == "\r" or c == "\n":
                 flush()
-        else:
-            if c in ["\r", "\n"]:
+    else:
+        for c in cmd(*args, **kwargs):
+            c = f"{c}"
+            if c == "\r" or c == "\n":
                 msg = "".join(buf)
                 color = Colors.RED if "error" in msg else Colors.RESET
                 write(
-                    "{}\r[DEBUG]:       {:<{w}}{}".format(
+                    "{}\r[DEBUG]       {:<{w}}{}".format(
                         color, msg, Colors.RESET, w=100
                     )
                 )
@@ -276,7 +276,7 @@ class Create(Command):
             overwrite_if_exists=args.overwrite_if_exists,
         )
         item = args.what.title()
-        print_color(Colors.GREEN, f"[INFO] {item} created successfully!")
+        print_color(Colors.GREEN, f"[INFO ] {item} created successfully!")
 
 
 class BuildRecipe(Command):
@@ -370,10 +370,12 @@ class MakePipRecipe(Command):
             meta["build"]["noarch"] = True
 
             # Update the script to install for every arch
-            script = meta["build"].pop("script", "").replace("{{ PYTHON }}", "python")
+            script = meta["build"].pop("script", "")
+            if isinstance(script, str):
+                script = script.replace("{{ PYTHON }}", "python")
             build_script = ["export CC=/bin/false", "export CXX=/bin/false"]
             build_script += [
-                f"{script} --no-compile " f"--target=$PREFIX/{p}/python/site-packages "
+                f"{script} --no-compile --target=$PREFIX/{p}/python/site-packages "
                 for p in [
                     "android/arm",
                     "android/arm64",
@@ -659,7 +661,7 @@ class BundleAssets(Command):
             #: Copy python/ build/
             cp(
                 "{conda_prefix}/{target}/python/".format(**cfg),
-                "{python_build_dir}/build".format(**cfg),
+                "{python_build_dir}/build/python".format(**cfg),
             )
 
             #: Copy sources from app source
@@ -1354,7 +1356,7 @@ class RunAndroid(Command):
             if IS_WIN:
                 gradlew = sh.Command("gradlew.bat")
             else:
-                gradlew = sh.Command("chmod 755 gradlew")
+                sh.chmod("755", "gradlew")
                 gradlew = sh.Command("./gradlew")
 
             #: If no devices are connected, start the simulator
@@ -1479,9 +1481,10 @@ class Server(Command):
 
     args = [
         (
-            "--remote-debugging",
+            "-r, --remote-debugging",
             dict(action="store_true", help="Run in remote debugging mode"),
         ),
+        ("-p, --port", dict(help="Port to use (default is 8888)", default="8888")),
     ]
 
     #: Server port
@@ -1492,22 +1495,21 @@ class Server(Command):
     _reload_count = Int()  #: Pending reload requests
 
     #: Watchdog  observer
-    observer = Instance(object)
+    observer = Value()
 
     #: Watchdog handler
-    watcher = Instance(object)
+    watcher = Value()
+
+    #: IOLoop
+    loop = Value()
 
     #: Websocket handler implementation
     handlers = List()
 
-    #: Callable to add a callback from a thread into the event loop
-    add_callback = Callable()
-
-    #: Callable to add a callback at some later time
-    call_later = Callable()
-
     #: Changed file events
     changes = List()
+
+    filetypes_to_watch = List(default=[".py", ".enaml"])
 
     #: Run in bridge (forwarding) mode for remote debugging
     remote_debugging = Bool()
@@ -1515,94 +1517,120 @@ class Server(Command):
     #: Can be run from anywhere
     app_dir_required = False
 
+    def _default_loop(self):
+        from tornado.ioloop import IOLoop
+
+        return IOLoop.current()
+
     def run(self, args=None):
         #: Save setting
-        self.remote_debugging = args and args.remote_debugging
-
-        if self.remote_debugging:
-            #: Do reverse forwarding so you can use remote-debugging over
-            #: adb (via USB even if Wifi is not accessible)
-            shprint(
-                sh.adb,
-                "reverse",
-                f"tcp:{self.port}",
-                f"tcp:{self.port}",
-            )
-        else:
-            #: Setup observer
-            try:
-                from watchdog.events import LoggingEventHandler
-                from watchdog.observers import Observer
-            except ImportError:
-                msg = "[WARNING] Watchdog is required the dev server: Run 'pip install watchdog'"
-                print_color(Colors.RED, msg)
-                return
-            self.observer = Observer()
-            server = self
-
-            class AppNotifier(LoggingEventHandler):
-                def on_any_event(self, event):
-                    super(AppNotifier, self).on_any_event(event)
-                    #: Use add callback to push to event loop thread
-                    server.add_callback(server.on_file_changed, event)
-
+        if args:
+            self.port = int(args.port)
+            self.remote_debugging = args.remote_debugging
         with cd("src"):
             if not self.remote_debugging:
-                src_dir = abspath(".")
-                print(f"Watching {src_dir}")
-                self.watcher = AppNotifier()
-                self.observer.schedule(self.watcher, src_dir, recursive=True)
-                self.observer.start()
+                self.setup_watchdog(args)
+            self.start_server(args)
 
-            self.run_tornado(args)
+    def setup_watchdog(self, args):
+        try:
+            from watchdog.events import LoggingEventHandler
+            from watchdog.observers import Observer
+        except ImportError:
+            msg = "[WARNING] Watchdog is required the dev server: Run 'pip install watchdog'"
+            print_color(Colors.RED, msg)
+            raise
 
-    def run_tornado(self, args):
+        # Avoid self in nested class
+        server = self
+
+        class AppNotifier(LoggingEventHandler):
+            def on_any_event(self, event):
+                super().on_any_event(event)
+                #: Use add callback to push to event loop thread
+                server.loop.add_callback(server.on_file_changed, event)
+
+        src_dir = abspath(".")
+        print(f"[INFO ] Watching for changes in: {src_dir}")
+        watcher = self.watcher = AppNotifier()
+        observer = self.observer = Observer()
+        observer.schedule(watcher, src_dir, recursive=True)
+        # Follow symlinks
+        for f in os.listdir(src_dir):
+            path = join(src_dir, f)
+            if os.path.islink(path) and os.path.isdir(path):
+                path = os.path.realpath(path)
+                print(f"[INFO ] Watching for changes in: {path}")
+                observer.schedule(watcher, path, recursive=True)
+
+        observer.start()
+
+    def start_forwarding(self):
+        #: Do reverse forwarding so you can use remote-debugging over
+        #: adb (via USB even if Wifi is not accessible)
+        args = ("reverse", f"tcp:{self.port}", f"tcp:{self.port}")
+        try:
+            sh.adb(*args)
+        except Exception:
+            pass
+
+    def start_server(self, args):
         """Tornado dev server implementation"""
         server = self
-        import tornado.ioloop
-        import tornado.web
-        import tornado.websocket
+        try:
+            from tornado.ioloop import PeriodicCallback
+            from tornado.web import Application, RequestHandler
+            from tornado.websocket import WebSocketHandler
+        except ImportError:
+            msg = "[WARNING] tornado is required the dev server: Run 'pip install tornado'"
+            print_color(Colors.RED, msg)
+            raise
 
-        ioloop = tornado.ioloop.IOLoop.current()
+        # Keep running adb reverse so it reconnects if the device goes away
+        forwarder = PeriodicCallback(self.start_forwarding, 1000)
 
-        class DevWebSocketHandler(tornado.websocket.WebSocketHandler):
+        class DevWebSocketHandler(WebSocketHandler):
             def open(self):
-                super(DevWebSocketHandler, self).open()
+                super().open()
+                forwarder.stop()
                 server.on_open(self)
 
             def on_message(self, message):
                 server.on_message(self, message)
 
             def on_close(self):
-                super(DevWebSocketHandler, self).on_close()
+                super().on_close()
+                forwarder.start()
                 server.on_close(self)
 
-        class MainHandler(tornado.web.RequestHandler):
+        class MainHandler(RequestHandler):
             def get(self):
                 self.write(server.index_page)
 
-        #: Set the call later method
-        server.call_later = ioloop.call_later
-        server.add_callback = ioloop.add_callback
-
-        app = tornado.web.Application(
+        app = Application(
             [
                 (r"/", MainHandler),
                 (r"/dev", DevWebSocketHandler),
             ]
         )
-
         app.listen(self.port)
-        print(f"Tornado Dev server started on {self.port}")
-        ioloop.start()
+        forwarder.start()
+        print(f"[INFO ] enaml-native dev server started on {self.port}")
+        self.loop.start()
 
     #: ========================================================
     #: Shared protocol implementation
     #: ========================================================
     def on_open(self, handler):
         self._reload_count = 0
-        print(f"Client {handler} connected!")
+        ip = handler.request.remote_ip
+        print_color(Colors.CYAN, f"[INFO ] Client {ip} connected!")
         self.handlers.append(handler)
+
+        # If channges occured while disconnected, send now
+        if self.changes:
+            self._reload_count = 1
+            self._trigger_reload()
 
     def on_message(self, handler, msg):
         """In remote debugging mode this simply acts as a forwarding
@@ -1627,38 +1655,67 @@ class Server(Command):
             h.write_message(msg)
 
     def on_close(self, handler):
-        print(f"Client {handler} left!")
+        ip = handler.request.remote_ip
+        print_color(Colors.RED, f"[INFO ] Client {ip} left!")
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):
-        """ """
-        print(event)
-        self._reload_count += 1
+        """ Save change event and trigger a reload after a delay """
+        ext = os.path.splitext(event.src_path)[-1]
+        if ext not in self.filetypes_to_watch:
+            return  # Ignored
+
         self.changes.append(event)
-        self.call_later(self.reload_delay, self._trigger_reload, event)
+        if not self.handlers:
+            print(f"[DEBUG] {event.src_path} changed, waiting for device...")
+            return
+        print(f"[DEBUG] {event.src_path} changed!")
+        self._reload_count += 1
+        self.loop.call_later(self.reload_delay, self._trigger_reload)
 
-    def _trigger_reload(self, event):
-        self._reload_count -= 1
-        if self._reload_count == 0:
-            files = {}
-            for event in self.changes:
-                path = os.path.relpath(event.src_path, os.getcwd())
-                if os.path.splitext(path)[-1] not in [".py", ".enaml"]:
-                    continue
-                with open(event.src_path) as f:
-                    data = f.read()
+    def _trigger_reload(self):
+        self._reload_count = max(0, self._reload_count - 1)
+        if self._reload_count > 0:
+            return
+        files = {}
+        for event in self.changes:
+            path = os.path.relpath(event.src_path, os.getcwd())
+            with open(event.src_path) as f:
+                data = f.read()
 
-                #: Add to changed files
-                files[path] = data
+            #: Add to changed files
+            files[path] = data
 
-            if files:
-                #: Send the reload request
-                msg = {"type": "reload", "files": files}
-                print(f"Reloading: {files.keys()}")
-                self.send_message(json.dumps(msg))
+        if files:
+            #: Send the reload request
+            msg = {"type": "reload", "files": files}
+            print(f"Reloading: {tuple(files.keys())}")
+            self.send_message(json.dumps(msg))
 
-            #: Clear changes
-            self.changes = []
+        #: Clear changes
+        self.changes = []
+
+
+class Logcat(Command):
+    """ Run logcat and restart if device disconnects (eg unplugged) """
+
+    title = "logcat"
+    help = "Run logcat in a loop"
+    app_dir_required = False
+    app_env_required = False
+
+    def run(self, args=None):
+        while True:
+            try:
+                shprint(sh.adb, "wait-for-device")
+            except KeyboardInterrupt:
+                break
+            try:
+                # Set bufsize
+                shprint(sh.adb, "logcat", _out_bufsize=64)
+            except KeyboardInterrupt:
+                break
+        print("\nDone")
 
 
 def find_commands(cls):
@@ -1724,7 +1781,15 @@ class EnamlNativeCli(Atom):
         app.
 
         """
-        return exists(self.package)
+        if exists(self.package):
+            # Look for enaml-native specific sections
+            try:
+                with open(self.package) as f:
+                    ctx = dict(yaml.load(f, Loader=yaml.RoundTripLoader))
+                    return "ios" in ctx or "android" in ctx
+            except Exception as e:
+                print_color(Colors.RED, f"Could not load environment.yml: {e}")
+        return False
 
     def _default_ctx(self):
         """Return the package config or context and normalize some of the
@@ -1732,7 +1797,10 @@ class EnamlNativeCli(Atom):
 
         """
         if not self.in_app_directory:
-            print(f"Warning: {self.package} does not exist. Using the default.")
+            print(
+                f"Warning: {self.package} is missing or not an "
+                "enaml-native env. Using the default."
+            )
             ctx = {}
 
         else:

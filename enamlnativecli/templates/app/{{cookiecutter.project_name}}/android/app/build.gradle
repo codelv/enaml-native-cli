@@ -2,8 +2,8 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion {{cookiecutter.android_sdk_version}}
-    ndkVersion {{cookiecutter.android_ndk_version}}
-    buildToolsVersion {{cookiecutter.android_build_tools_version}}
+    ndkVersion '{{cookiecutter.android_ndk_version}}'
+    buildToolsVersion '{{cookiecutter.android_build_tools_version}}'
     defaultConfig {
         applicationId '{{cookiecutter.bundle_id}}'
         minSdkVersion {{ cookiecutter.android_min_sdk_version }}

@@ -1,4 +1,4 @@
-from enamlnative.core.api import *
+from enamlnative.widgets.api import Flexbox, TextView, Window
 
 
 enamldef MainWindow(Window):
