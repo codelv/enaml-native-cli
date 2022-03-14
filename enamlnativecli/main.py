@@ -1660,7 +1660,7 @@ class Server(Command):
         self.handlers.remove(handler)
 
     def on_file_changed(self, event):
-        """ Save change event and trigger a reload after a delay """
+        """Save change event and trigger a reload after a delay"""
         ext = os.path.splitext(event.src_path)[-1]
         if ext not in self.filetypes_to_watch:
             return  # Ignored
@@ -1697,7 +1697,7 @@ class Server(Command):
 
 
 class Logcat(Command):
-    """ Run logcat and restart if device disconnects (eg unplugged) """
+    """Run logcat and restart if device disconnects (eg unplugged)"""
 
     title = "logcat"
     help = "Run logcat in a loop"
