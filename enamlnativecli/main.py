@@ -10,6 +10,7 @@ Created on July 10, 2017
 """
 import compileall
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -104,15 +105,17 @@ def find_conda():
         # Linux
         join(USER_HOME, "miniconda2", "bin"),
         join(USER_HOME, "miniconda3", "bin"),
+        join(USER_HOME, "micromamba", "bin"),
         join(CONDA_HOME, "bin"),
         # TODO: OSX
     ] + os.environ.get("PATH", "").split(";" if "win" in sys.path else ":")
 
-    cmd = "conda.exe" if IS_WIN else "conda"
+    names = ("mamba", "conda", "conda.exe")
     for conda_path in search_paths:
-        conda = join(conda_path, cmd)
-        if exists(conda):
-            return sh.Command(conda)
+        for name in names:
+            cmd = join(conda_path, name)
+            if exists(cmd):
+                return sh.Command(cmd)
 
     # Try to let the system find it
     return sh.conda
@@ -166,7 +169,9 @@ def shprint(cmd, *args, **kwargs):
         kwargs["_bg"] = True
         process = cmd(*args, **kwargs).process
         for c in iter(lambda: process.stdout.read(1), ""):
-            write(c.decode("utf-8"))
+            if isinstance(c, bytes):
+                c = c.decode("utf-8", errors="ignore")
+            write(c)
             if c == "\r" or c == "\n":
                 flush()
             if not c:
@@ -177,13 +182,15 @@ def shprint(cmd, *args, **kwargs):
     buf = []
     if debug:
         for c in cmd(*args, **kwargs):
-            c = f"{c}"
+            if isinstance(c, bytes):
+                c = c.decode("utf-8", errors="ignore")
             write(c)
-            if c == "\r" or c == "\n":
+            if c == b"\r" or c == b"\n":
                 flush()
     else:
         for c in cmd(*args, **kwargs):
-            c = f"{c}"
+            if isinstance(c, bytes):
+                c = c.decode("utf-8", errors="ignore")
             if c == "\r" or c == "\n":
                 msg = "".join(buf)
                 color = Colors.RED if "error" in msg else Colors.RESET
@@ -1364,8 +1371,8 @@ class RunAndroid(Command):
                 gradlew = sh.Command("./gradlew")
 
             #: If no devices are connected, start the simulator
-            if len(sh.adb("devices").stdout.strip()) == 1:
-                device = sh.emulator("-list-avds").stdout.split("\n")[0]
+            if len(sh.adb("devices").strip()) == 1:
+                device = sh.emulator("-list-avds").split("\n")[0]
                 shprint(sh.emulator, "-avd", device)
             if args and args.release:
                 shprint(gradlew, "assembleRelease", *args.extra, _debug=True)
@@ -1511,7 +1518,11 @@ class Server(Command):
     handlers = List()
 
     #: Changed file events
-    changes = List()
+    changes = Dict()
+
+    #: Map of filename to hash to avoid duplicate updates that can occur if
+    #: watchdog is polling
+    watched_files = Dict()
 
     filetypes_to_watch = List(default=[".py", ".enaml"])
 
@@ -1665,26 +1676,42 @@ class Server(Command):
 
     def on_file_changed(self, event):
         """Save change event and trigger a reload after a delay"""
-        ext = os.path.splitext(event.src_path)[-1]
-        if ext not in self.filetypes_to_watch:
-            return  # Ignored
+        src_path = event.src_path
+        ext = os.path.splitext(src_path)[-1]
+        if ext not in self.filetypes_to_watch or src_path in self.changes:
+            return  # Ignored or already detected
 
-        self.changes.append(event)
+        if not self._check_file_changed(src_path):
+            return # Hash is same
+
+        self.changes[src_path] = event
         if not self.handlers:
-            print(f"[DEBUG] {event.src_path} changed, waiting for device...")
+            print(f"[DEBUG] {src_path} changed, waiting for device...")
             return
-        print(f"[DEBUG] {event.src_path} changed!")
+        print(f"[DEBUG] {src_path} changed!")
         self._reload_count += 1
         self.loop.call_later(self.reload_delay, self._trigger_reload)
+
+    def _check_file_changed(self, src_path: str) -> bool:
+        # Make sure the file changed
+        m = hashlib.sha256()
+        with open(src_path, 'rb') as f:
+            m.update(f.read())
+        new_hash = m.hexdigest()
+        old_hash = self.watched_files.get(src_path, None)
+        if old_hash == new_hash:
+            return False
+        self.watched_files[src_path] = new_hash
+        return True
 
     def _trigger_reload(self):
         self._reload_count = max(0, self._reload_count - 1)
         if self._reload_count > 0:
             return
         files = {}
-        for event in self.changes:
-            path = os.path.relpath(event.src_path, os.getcwd())
-            with open(event.src_path) as f:
+        for src_path, event in self.changes.items():
+            path = os.path.relpath(src_path, os.getcwd())
+            with open(src_path) as f:
                 data = f.read()
 
             #: Add to changed files
@@ -1697,7 +1724,7 @@ class Server(Command):
             self.send_message(json.dumps(msg))
 
         #: Clear changes
-        self.changes = []
+        self.changes = {}
 
 
 class Logcat(Command):

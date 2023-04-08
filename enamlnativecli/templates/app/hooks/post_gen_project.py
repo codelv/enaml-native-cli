@@ -16,7 +16,10 @@ else:
     kw["_out_bufsize"] = 0
 
     def process(c):
-        sys.stdout.write(c)
+        if isinstance(c, bytes):
+            sys.stdout.write(c.decode('utf-8', errors="ignore"))
+        else:
+            sys.stdout.write(c)
         sys.stdout.flush()
 
 

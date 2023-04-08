@@ -5,7 +5,6 @@ bundle_id: {{cookiecutter.bundle_id}}
 # Channels to look for any specific libraries
 channels:
   - local
-  - codelv
 
 # App dependencies to be installed
 dependencies:

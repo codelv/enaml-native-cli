@@ -44,6 +44,6 @@ setup(
     packages=find_packages(),
     package_data={"": list(find_data("enamlnativecli"))},
     include_package_data=True,
-    install_requires=["sh", "atom", "ruamel.yaml", "cookiecutter", "pbs"],
+    install_requires=["sh", "atom", "ruamel.yaml", "cookiecutter", "pbs", "tornado", "watchdog"],
     test_requires=["requests", "py.test", "pytest-cov", "pytest-timeout"],
 )
