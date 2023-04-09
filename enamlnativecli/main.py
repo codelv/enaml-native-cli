@@ -1560,9 +1560,20 @@ class Server(Command):
         server = self
 
         class AppNotifier(LoggingEventHandler):
-            def on_any_event(self, event):
-                super().on_any_event(event)
-                #: Use add callback to push to event loop thread
+            def on_created(self, event):
+                super().on_created(event)
+                server.loop.add_callback(server.on_file_changed, event)
+
+            def on_modified(self, event):
+                super().on_modified(event)
+                server.loop.add_callback(server.on_file_changed, event)
+
+            def on_deleted(self, event):
+                super().on_deleted(event)
+                server.loop.add_callback(server.on_file_changed, event)
+
+            def on_moved(self, event):
+                super().on_moved(event)
                 server.loop.add_callback(server.on_file_changed, event)
 
         src_dir = abspath(".")
