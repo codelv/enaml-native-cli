@@ -1706,9 +1706,12 @@ class Server(Command):
     def _check_file_changed(self, src_path: str) -> bool:
         # Make sure the file changed
         m = hashlib.sha256()
-        with open(src_path, 'rb') as f:
-            m.update(f.read())
-        new_hash = m.hexdigest()
+        if os.path.exists(src_path):
+            with open(src_path, 'rb') as f:
+                m.update(f.read())
+            new_hash = m.hexdigest()
+        else:
+            new_hash = None  # May have been moved or deleted
         old_hash = self.watched_files.get(src_path, None)
         if old_hash == new_hash:
             return False
